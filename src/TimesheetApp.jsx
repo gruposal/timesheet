@@ -397,42 +397,41 @@ export default function TimesheetApp() {
     { k: "directory", label: "Cadastros" },
   ];
 
+  const TAB_ICONS = { timesheet: "📋", dashboard: "📊", directory: "👥" };
+
   return (
     <div className={bg}>
 
       {/* ── Topbar ── */}
-      <header className="sticky top-0 z-30 bg-slate-900 text-white h-14 flex items-center px-6 gap-6 shadow-sm">
-        <span className="font-semibold text-sm tracking-wide text-slate-100">SAL Timesheet</span>
-        <nav className="flex gap-1">
+      <header className="sticky top-0 z-30 bg-slate-900 text-white h-14 flex items-center px-4 gap-4 shadow-sm">
+        <span className="font-semibold text-sm tracking-wide text-slate-100 shrink-0">SAL Timesheet</span>
+
+        {/* Tabs — desktop only */}
+        <nav className="hidden sm:flex gap-1 ml-2">
           {TAB.map(t => (
-            <button
-              key={t.k}
-              onClick={() => setView(t.k)}
-              className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
-                view === t.k
-                  ? "bg-white/15 text-white font-medium"
-                  : "text-slate-400 hover:text-white hover:bg-white/10"
-              }`}
-            >
+            <button key={t.k} onClick={() => setView(t.k)}
+              className={`px-3 py-1.5 rounded-md text-sm transition-colors ${view === t.k ? "bg-white/15 text-white font-medium" : "text-slate-400 hover:text-white hover:bg-white/10"}`}>
               {t.label}
             </button>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <button onClick={exportExcel} className="px-3 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors" title="Exportar Excel">
+
+        <div className="ml-auto flex items-center gap-1">
+          {/* Excel — desktop only */}
+          <button onClick={exportExcel} className="hidden sm:flex px-3 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors" title="Exportar Excel">
             Excel
           </button>
-          <button onClick={() => setHelpOpen(v => !v)} className="px-3 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors" title="Ajuda (?)">
+          <button onClick={() => setHelpOpen(v => !v)} className="px-2.5 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors" title="Ajuda">
             ?
           </button>
-          <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} className="px-3 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+          <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} className="px-2.5 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
             {theme === "dark" ? "☀" : "◑"}
           </button>
         </div>
       </header>
 
       {/* ── Main ── */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24 sm:pb-8">
 
         {/* ══ Timesheet view ══ */}
         {view === "timesheet" && (
@@ -757,6 +756,19 @@ export default function TimesheetApp() {
           </div>
         </div>
       )}
+
+      {/* ── Bottom nav — mobile only ── */}
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-slate-900 border-t border-slate-700 flex">
+        {TAB.map(t => (
+          <button key={t.k} onClick={() => setView(t.k)}
+            className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-xs transition-colors ${
+              view === t.k ? "text-white" : "text-slate-400"
+            }`}>
+            <span className="text-lg leading-none">{TAB_ICONS[t.k]}</span>
+            {t.label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

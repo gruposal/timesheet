@@ -40,7 +40,6 @@ function Combobox({ value, onChange, options, placeholder, className }) {
 
   useEffect(() => { setQuery(value ?? ""); }, [value]);
 
-  // Close on scroll so the dropdown doesn't drift from input on mobile
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
@@ -60,11 +59,7 @@ function Combobox({ value, onChange, options, placeholder, className }) {
     setOpen(true);
   }
 
-  function select(opt) {
-    setQuery(opt);
-    onChange(opt);
-    setOpen(false);
-  }
+  function select(opt) { setQuery(opt); onChange(opt); setOpen(false); }
 
   function handleBlur(e) {
     if (listRef.current?.contains(e.relatedTarget)) return;
@@ -74,13 +69,11 @@ function Combobox({ value, onChange, options, placeholder, className }) {
     setOpen(false);
   }
 
-  // Position: prefer below, flip above if not enough space
   const dropStyle = useMemo(() => {
     if (!rect) return {};
     const spaceBelow = window.innerHeight - rect.bottom;
-    const maxH = 208; // max-h-52 = 13rem ≈ 208px
+    const maxH = 208;
     const top = spaceBelow >= maxH + 8 ? rect.bottom + 4 : rect.top - Math.min(maxH, filtered.length * 44) - 4;
-    // On narrow screens stretch to viewport width with horizontal margin
     const isMobile = window.innerWidth < 640;
     return isMobile
       ? { position: "fixed", top, left: 12, right: 12, zIndex: 9999 }
@@ -97,16 +90,13 @@ function Combobox({ value, onChange, options, placeholder, className }) {
         onBlur={handleBlur}
         placeholder={placeholder}
         className={className}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
+        autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
       />
       {open && filtered.length > 0 && rect && (
         <ul
           ref={listRef}
           style={dropStyle}
-          className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl text-sm"
+          className="max-h-52 overflow-y-auto rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white/95 dark:bg-[#2C2C2E]/95 backdrop-blur-xl shadow-2xl text-[15px]"
         >
           {filtered.map(opt => (
             <li
@@ -114,7 +104,7 @@ function Combobox({ value, onChange, options, placeholder, className }) {
               tabIndex={-1}
               onMouseDown={e => { e.preventDefault(); select(opt); }}
               onTouchEnd={e => { e.preventDefault(); select(opt); }}
-              className={`px-3 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200 dark:active:bg-slate-600 ${opt === value ? "font-medium text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300"}`}
+              className={`px-4 py-3 cursor-pointer border-b border-black/[0.04] dark:border-white/[0.04] last:border-0 active:bg-[#F2F2F7] dark:active:bg-[#3A3A3C] ${opt === value ? "font-semibold text-[#007AFF] dark:text-[#0A84FF]" : "text-black dark:text-white"}`}
             >
               {opt}
             </li>
@@ -125,24 +115,37 @@ function Combobox({ value, onChange, options, placeholder, className }) {
   );
 }
 
-// ─── Status badge ────────────────────────────────────────────────────────────
+// ─── WeekStatus badge ─────────────────────────────────────────────────────────
 function WeekStatus({ entries }) {
   const hasForecast = entries.some(e => Number(e.hours_forecast) > 0);
   const hasConsolidated = entries.some(e => Number(e.hours_consolidated) > 0);
-  if (hasConsolidated) return <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">● Consolidado</span>;
-  if (hasForecast)    return <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">◑ Previsão</span>;
-  return                      <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200">○ Sem lançamento</span>;
+  if (hasConsolidated) return (
+    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1 rounded-full bg-[#34C759]/10 text-[#34C759] border border-[#34C759]/20">
+      ● Consolidado
+    </span>
+  );
+  if (hasForecast) return (
+    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1 rounded-full bg-[#FF9500]/10 text-[#FF9500] border border-[#FF9500]/20">
+      ◑ Previsão
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1 rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-[#8E8E93] border border-black/[0.06] dark:border-white/[0.08]">
+      ○ Sem lançamento
+    </span>
+  );
 }
 
 // ─── Desvio badge ─────────────────────────────────────────────────────────────
 function Desvio({ forecast, consolidated }) {
-  if (consolidated == null || consolidated === "") return <span className="text-slate-300">—</span>;
+  if (consolidated == null || consolidated === "") return <span className="text-[#8E8E93]">—</span>;
   const d = Number(consolidated) - Number(forecast);
-  if (d === 0) return <span className="text-emerald-600 font-medium tabular-nums">0h</span>;
-  if (d > 0)   return <span className="text-red-500 font-medium tabular-nums">+{d}h</span>;
-  return              <span className="text-amber-500 font-medium tabular-nums">{d}h</span>;
+  if (d === 0) return <span className="text-[#34C759] font-semibold tabular-nums">0h</span>;
+  if (d > 0)   return <span className="text-[#FF3B30] dark:text-[#FF453A] font-semibold tabular-nums">+{d}h</span>;
+  return              <span className="text-[#FF9500] dark:text-[#FF9F0A] font-semibold tabular-nums">{d}h</span>;
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function TimesheetApp() {
   const [people, setPeople] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -153,35 +156,34 @@ export default function TimesheetApp() {
     ? safeJsonParse(localStorage.getItem(PERSIST_KEY) || "{}", {})
     : {};
 
-  const [selectedYear, setSelectedYear] = useState(Number(persisted.selectedYear) || today.getFullYear());
-  const [selectedWeek, setSelectedWeek] = useState(Number(persisted.selectedWeek) || getISOWeek(today));
-  const [person, setPerson] = useState(persisted.person || "");
+  const [selectedYear, setSelectedYear]   = useState(Number(persisted.selectedYear) || today.getFullYear());
+  const [selectedWeek, setSelectedWeek]   = useState(Number(persisted.selectedWeek) || getISOWeek(today));
+  const [person, setPerson]               = useState(persisted.person || "");
   const { start, end } = useMemo(() => weekStartEnd(selectedYear, selectedWeek), [selectedYear, selectedWeek]);
 
-  const blankEntry = () => ({ id: uid(), project: projects[0] || "", businessUnit: bus[0] || "", hours_forecast: "", hours_consolidated: "" });
+  const blankEntry = () => ({ id: uid(), project: "", businessUnit: bus[0] || "", hours_forecast: "", hours_consolidated: "" });
   const [entries, setEntries] = useState(() =>
     Array.isArray(persisted.entries) && persisted.entries.length ? persisted.entries : [blankEntry()]
   );
-  const [db, setDb] = useState([]);
-  const [dbFilter, setDbFilter] = useState("");
-  const [dbOpen, setDbOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [loadingWeek, setLoadingWeek] = useState(false);
-  const [previewSort, setPreviewSort] = useState({ field: "ISO_Week", dir: "desc" });
-  const [previewPage, setPreviewPage] = useState(1);
-  const [previewPageSize] = useState(15);
-  const [editingId, setEditingId] = useState(null);
-  const [editingValues, setEditingValues] = useState(null);
-  const [view, setView] = useState(persisted.view || "timesheet");
-  const [theme, setTheme] = useState(() => {
+  const [db, setDb]                         = useState([]);
+  const [dbFilter, setDbFilter]             = useState("");
+  const [dbOpen, setDbOpen]                 = useState(false);
+  const [saving, setSaving]                 = useState(false);
+  const [loadingWeek, setLoadingWeek]       = useState(false);
+  const [previewSort, setPreviewSort]       = useState({ field: "ISO_Week", dir: "desc" });
+  const [previewPage, setPreviewPage]       = useState(1);
+  const [previewPageSize]                   = useState(15);
+  const [editingId, setEditingId]           = useState(null);
+  const [editingValues, setEditingValues]   = useState(null);
+  const [view, setView]                     = useState(persisted.view === "directory" ? "timesheet" : (persisted.view || "timesheet"));
+  const [theme, setTheme]                   = useState(() => {
     if (typeof window === "undefined") return "light";
     const s = persisted.theme || localStorage.getItem("theme");
     if (s === "dark" || s === "light") return s;
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   });
-
-  const [toast, setToast] = useState("");
-  const toastRef = useRef(null);
+  const [toast, setToast]     = useState("");
+  const toastRef              = useRef(null);
   const [helpOpen, setHelpOpen] = useState(false);
 
   function showToast(msg) {
@@ -210,7 +212,6 @@ export default function TimesheetApp() {
       if (e.shiftKey) {
         if (e.key === "1") { e.preventDefault(); setView("timesheet"); }
         if (e.key === "2") { e.preventDefault(); setView("dashboard"); }
-        if (e.key === "3") { e.preventDefault(); setView("directory"); }
       }
     }
     window.addEventListener("keydown", onKey);
@@ -239,9 +240,9 @@ export default function TimesheetApp() {
     else { setSelectedYear(y => y + 1); setSelectedWeek(1); }
   }
 
-  const totalForecast = useMemo(() => entries.reduce((s, e) => s + (Number(e.hours_forecast) || 0), 0), [entries]);
+  const totalForecast     = useMemo(() => entries.reduce((s, e) => s + (Number(e.hours_forecast) || 0), 0), [entries]);
   const totalConsolidated = useMemo(() => entries.reduce((s, e) => s + (Number(e.hours_consolidated) || 0), 0), [entries]);
-  const desvioTotal = totalConsolidated - totalForecast;
+  const desvioTotal       = totalConsolidated - totalForecast;
 
   function updateEntry(id, field, value) {
     setEntries(prev => prev.map(e => {
@@ -262,8 +263,8 @@ export default function TimesheetApp() {
     }));
   }
 
-  function addRow() { setEntries(p => [...p, blankEntry()]); }
-  function removeRow(id) {
+  function addRow()       { setEntries(p => [...p, blankEntry()]); }
+  function removeRow(id)  {
     setEntries(p => {
       if (p.length === 1) return p;
       if (!window.confirm("Remover esta linha?")) return p;
@@ -283,25 +284,24 @@ export default function TimesheetApp() {
       }));
   }
 
-  async function saveForecast() {
+  async function save() {
     if (!person) { showToast("Selecione a pessoa."); return; }
-    const rows = buildCuRows().filter(r => r.Hours_Forecast != null);
-    if (!rows.length) { showToast("Nenhuma previsão para salvar."); return; }
-    try { setSaving(true); await upsertForecast(rows); showToast(`Previsão salva (${rows.length} linha(s)).`); loadFromClickUpForWeek(); }
-    catch (e) { console.warn(e); showToast("Erro ao salvar previsão."); }
+    const rows = buildCuRows();
+    if (!rows.length) { showToast("Nenhum dado para salvar."); return; }
+    try {
+      setSaving(true);
+      const forecastRows     = rows.filter(r => r.Hours_Forecast != null);
+      const consolidatedRows = rows.filter(r => r.Hours_Consolidated != null);
+      if (forecastRows.length)     await upsertForecast(forecastRows);
+      if (consolidatedRows.length) await upsertConsolidated(consolidatedRows);
+      showToast(`Salvo (${rows.length} linha${rows.length > 1 ? "s" : ""}).`);
+      loadFromClickUp();
+    } catch (e) { console.warn(e); showToast("Erro ao salvar."); }
     finally { setSaving(false); }
   }
 
-  async function saveConsolidated() {
-    if (!person) { showToast("Selecione a pessoa."); return; }
-    const rows = buildCuRows().filter(r => r.Hours_Consolidated != null);
-    if (!rows.length) { showToast("Nenhum consolidado para salvar."); return; }
-    try { setSaving(true); await upsertConsolidated(rows); showToast(`Consolidado salvo (${rows.length} linha(s)).`); loadFromClickUpForWeek(); }
-    catch (e) { console.warn(e); showToast("Erro ao salvar consolidado."); }
-    finally { setSaving(false); }
-  }
-
-  async function loadFromClickUpForWeek() {
+  async function loadFromClickUp() {
+    if (!person) { showToast("Selecione a pessoa primeiro."); return; }
     try {
       setLoadingWeek(true);
       const rows = await loadForWeek(selectedYear, selectedWeek);
@@ -314,8 +314,18 @@ export default function TimesheetApp() {
           hours_consolidated: r.Hours_Consolidated ?? "",
         })));
       }
-      showToast(`${rows.length} registro(s) carregado(s).`);
-    } catch (e) { console.warn(e); showToast("Erro ao carregar semana."); }
+      showToast(`${rows.length} registro${rows.length !== 1 ? "s" : ""} carregado${rows.length !== 1 ? "s" : ""}.`);
+    } catch (e) { console.warn(e); showToast("Erro ao carregar."); }
+    finally { setLoadingWeek(false); }
+  }
+
+  async function loadYear() {
+    try {
+      setLoadingWeek(true);
+      const r = await loadLastYear(selectedYear);
+      setDb(r); setPreviewPage(1); setDbOpen(true);
+      showToast(`${r.length} registros.`);
+    } catch { showToast("Erro ao carregar ano."); }
     finally { setLoadingWeek(false); }
   }
 
@@ -324,15 +334,15 @@ export default function TimesheetApp() {
     catch (e) { console.warn(e); showToast("Erro ao remover."); }
   }
 
-  function startEditRow(row) { setEditingId(row.ID); setEditingValues({ ...row }); }
-  function cancelEditRow() { setEditingId(null); setEditingValues(null); }
+  function startEditRow(row)   { setEditingId(row.ID); setEditingValues({ ...row }); }
+  function cancelEditRow()     { setEditingId(null); setEditingValues(null); }
   function changeEditing(f, v) { setEditingValues(p => ({ ...p, [f]: v })); }
 
   async function saveEditRow() {
     if (!editingId || !editingValues) return;
     try {
       setSaving(true);
-      await upsertForecast([{ ...editingValues, Hours_Forecast: Number(editingValues.Hours_Forecast) || null, Hours_Consolidated: Number(editingValues.Hours_Consolidated) || null }]);
+      await upsertForecast([{ ...editingValues, Hours_Forecast: Number(editingValues.Hours_Forecast) || null }]);
       if (editingValues.Hours_Consolidated != null)
         await upsertConsolidated([{ ...editingValues, Hours_Consolidated: Number(editingValues.Hours_Consolidated) || null }]);
       setDb(p => p.map(r => r.ID === editingId ? { ...editingValues } : r));
@@ -364,9 +374,9 @@ export default function TimesheetApp() {
     return arr;
   }, [filteredDb, previewSort]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedDb.length / previewPageSize));
+  const totalPages  = Math.max(1, Math.ceil(sortedDb.length / previewPageSize));
   const currentPage = Math.min(previewPage, totalPages);
-  const pagedDb = useMemo(() => sortedDb.slice((currentPage - 1) * previewPageSize, currentPage * previewPageSize), [sortedDb, currentPage, previewPageSize]);
+  const pagedDb     = useMemo(() => sortedDb.slice((currentPage - 1) * previewPageSize, currentPage * previewPageSize), [sortedDb, currentPage, previewPageSize]);
 
   function toggleSort(f) {
     setPreviewSort(p => p.field === f ? { field: f, dir: p.dir === "asc" ? "desc" : "asc" } : { field: f, dir: "asc" });
@@ -374,115 +384,147 @@ export default function TimesheetApp() {
 
   async function exportExcel() {
     const XLSX = await import("xlsx");
-    const wb = XLSX.utils.book_new();
-    const data = db.length ? db : [];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Registros");
+    const wb   = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(db.length ? db : []), "Registros");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(people.map(p => ({ Pessoa: p }))), "Pessoas");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(projects.map(p => ({ Projeto: p }))), "Projetos");
     XLSX.writeFile(wb, `Timesheet_${selectedYear}_${format(new Date(), "yyyyMMdd")}.xlsx`);
   }
 
-  // ─── Styles ────────────────────────────────────────────────────────────────
-  const bg = "min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100";
-  const card = "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl";
-  const inputCls = "rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 w-full";
-  const btnPrimary = "inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium hover:bg-slate-700 dark:hover:bg-slate-200 disabled:opacity-40 transition-colors";
-  const btnSecondary = "inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors";
-  const th = "px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap";
-  const td = "px-4 py-2.5 text-sm";
+  // ─── Apple design tokens ──────────────────────────────────────────────────
+  const bg        = "min-h-screen bg-[#F2F2F7] dark:bg-black text-black dark:text-white";
+  const card      = "bg-white dark:bg-[#1C1C1E] rounded-2xl";
+  const inputCls  = "rounded-[10px] border border-black/[0.08] dark:border-white/[0.1] bg-[#F2F2F7] dark:bg-[#2C2C2E] px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#007AFF] dark:focus:ring-[#0A84FF] w-full";
+  const btnBlue   = "w-full flex items-center justify-center py-[14px] rounded-[14px] bg-[#007AFF] dark:bg-[#0A84FF] text-white text-[17px] font-semibold disabled:opacity-40 transition-opacity active:opacity-70";
+  const btnGhost  = "inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[10px] bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#007AFF] dark:text-[#0A84FF] text-[15px] font-medium disabled:opacity-40 transition-colors hover:bg-[#E5E5EA] dark:hover:bg-[#3A3A3C]";
+  const th        = "px-4 py-2.5 text-left text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wide whitespace-nowrap";
+  const td        = "px-4 py-3";
+  const sep       = "divide-y divide-black/[0.06] dark:divide-white/[0.06]";
 
-  const TAB = [
-    { k: "timesheet", label: "Timesheet" },
-    { k: "dashboard", label: "Dashboard" },
-    { k: "directory", label: "Cadastros" },
+  const TABS = [
+    { k: "timesheet", label: "Lançar",      icon: "⏱" },
+    { k: "dashboard", label: "Visão Geral", icon: "📊" },
   ];
-
-  const TAB_ICONS = { timesheet: "📋", dashboard: "📊", directory: "👥" };
 
   return (
     <div className={bg}>
 
-      {/* ── Topbar ── */}
-      <header className="sticky top-0 z-30 bg-slate-900 text-white h-14 flex items-center px-4 gap-4 shadow-sm">
-        <span className="font-semibold text-sm tracking-wide text-slate-100 shrink-0">SAL Timesheet</span>
+      {/* ── Header ── */}
+      <header className="sticky top-0 z-30 backdrop-blur-2xl bg-white/80 dark:bg-black/80 border-b border-black/[0.08] dark:border-white/[0.08]">
+        <div className="max-w-3xl mx-auto px-4 h-12 flex items-center gap-3">
+          <span className="font-semibold text-[17px] tracking-tight shrink-0">SAL Timesheet</span>
 
-        {/* Tabs — desktop only */}
-        <nav className="hidden sm:flex gap-1 ml-2">
-          {TAB.map(t => (
-            <button key={t.k} onClick={() => setView(t.k)}
-              className={`px-3 py-1.5 rounded-md text-sm transition-colors ${view === t.k ? "bg-white/15 text-white font-medium" : "text-slate-400 hover:text-white hover:bg-white/10"}`}>
-              {t.label}
+          {/* Segmented control — desktop */}
+          <div className="hidden sm:flex mx-auto bg-[#E5E5EA] dark:bg-[#3A3A3C] rounded-[9px] p-[2px] gap-[2px]">
+            {TABS.map(t => (
+              <button key={t.k} onClick={() => setView(t.k)}
+                className={`px-5 py-[5px] rounded-[7px] text-[13px] font-medium transition-all duration-150 ${
+                  view === t.k
+                    ? "bg-white dark:bg-[#636366] text-black dark:text-white shadow-sm"
+                    : "text-[#8E8E93] hover:text-black dark:hover:text-white"
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="ml-auto sm:ml-0 flex items-center gap-0.5">
+            <button onClick={exportExcel}
+              className="hidden sm:flex items-center px-3 py-1.5 rounded-[8px] text-[13px] text-[#007AFF] dark:text-[#0A84FF] font-medium hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] transition-colors">
+              Excel
             </button>
-          ))}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-1">
-          {/* Excel — desktop only */}
-          <button onClick={exportExcel} className="hidden sm:flex px-3 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors" title="Exportar Excel">
-            Excel
-          </button>
-          <button onClick={() => setHelpOpen(v => !v)} className="px-2.5 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors" title="Ajuda">
-            ?
-          </button>
-          <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")} className="px-2.5 py-1.5 rounded-md text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
-            {theme === "dark" ? "☀" : "◑"}
-          </button>
+            <button onClick={() => setHelpOpen(v => !v)}
+              className="w-9 h-9 flex items-center justify-center rounded-full text-[#8E8E93] hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] transition-colors text-[15px]">
+              ?
+            </button>
+            <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+              className="w-9 h-9 flex items-center justify-center rounded-full text-[#8E8E93] hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] transition-colors text-[15px]">
+              {theme === "dark" ? "☀" : "◑"}
+            </button>
+          </div>
         </div>
       </header>
 
       {/* ── Main ── */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-24 sm:pb-8">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 pb-32 sm:pb-12">
 
-        {/* ══ Timesheet view ══ */}
+        {/* ══════════════════════════════════════════
+            LANÇAR  (jornada do colaborador)
+        ══════════════════════════════════════════ */}
         {view === "timesheet" && (
           <>
-            {/* Week + Person bar */}
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <Combobox
-                value={person}
-                onChange={setPerson}
-                options={people}
-                placeholder="— selecione —"
-                className={`${inputCls} w-auto min-w-[180px]`}
-              />
-
-              <div className="flex items-center gap-1 ml-auto">
-                <button onClick={prevWeek} className={btnSecondary} aria-label="Semana anterior">←</button>
-                <div className="px-4 py-2 text-sm font-medium tabular-nums">
-                  Semana {toTwo(selectedWeek)} · {selectedYear}
+            {/* Person + Week — iOS grouped card */}
+            <div className={`${card} overflow-hidden mb-5`}>
+              <div className={sep}>
+                {/* Pessoa */}
+                <div className="px-4 py-3 flex items-center gap-3 min-h-[52px]">
+                  <span className="text-[15px] text-[#8E8E93] w-28 shrink-0">Colaborador</span>
+                  <div className="flex-1">
+                    <Combobox
+                      value={person}
+                      onChange={setPerson}
+                      options={people}
+                      placeholder={people.length === 0 ? "Carregando…" : "Selecionar…"}
+                      className={inputCls}
+                    />
+                  </div>
                 </div>
-                <button onClick={nextWeek} className={btnSecondary} aria-label="Próxima semana">→</button>
-              </div>
 
-              <div className="text-sm text-slate-500">
-                {format(start, "dd/MM")} – {format(end, "dd/MM")}
+                {/* Semana */}
+                <div className="px-4 py-3 flex items-center gap-3 min-h-[60px]">
+                  <span className="text-[15px] text-[#8E8E93] w-28 shrink-0">Semana</span>
+                  <div className="flex items-center gap-3 flex-1">
+                    <button onClick={prevWeek}
+                      className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F2F2F7] dark:bg-[#3A3A3C] text-[#007AFF] dark:text-[#0A84FF] text-[22px] leading-none font-light shrink-0">
+                      ‹
+                    </button>
+                    <div className="flex-1 text-center">
+                      <div className="text-[15px] font-semibold">
+                        Semana {toTwo(selectedWeek)}
+                        <span className="text-[#8E8E93] font-normal ml-2">{selectedYear}</span>
+                      </div>
+                      <div className="text-[12px] text-[#8E8E93] mt-0.5">
+                        {format(start, "dd/MM")} – {format(end, "dd/MM")}
+                      </div>
+                    </div>
+                    <button onClick={nextWeek}
+                      className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F2F2F7] dark:bg-[#3A3A3C] text-[#007AFF] dark:text-[#0A84FF] text-[22px] leading-none font-light shrink-0">
+                      ›
+                    </button>
+                  </div>
+                </div>
               </div>
+            </div>
 
+            {/* Status + Carregar */}
+            <div className="flex items-center justify-between mb-5 px-1">
               <WeekStatus entries={entries} />
+              <button onClick={loadFromClickUp} disabled={loadingWeek || !person} className={btnGhost + " text-[13px] py-1.5"}>
+                {loadingWeek ? "Carregando…" : "Carregar semana"}
+              </button>
             </div>
 
             {/* Entry table */}
             <div className={`${card} overflow-x-auto mb-4`}>
-              <table className="w-full min-w-[560px]">
+              <div className="px-4 pt-4 pb-2">
+                <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider">Lançamentos</span>
+              </div>
+              <table className="w-full min-w-[520px]">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-                    <th className={th} style={{ width: "22%" }}>Centro de Custo</th>
+                  <tr className="border-b border-black/[0.06] dark:border-white/[0.06] bg-[#F9F9F9] dark:bg-[#2C2C2E]/40">
+                    <th className={th}>Centro de Custo</th>
                     <th className={th}>Projeto</th>
-                    <th className={`${th} text-center`} style={{ width: "110px" }}>Previstas</th>
-                    <th className={`${th} text-center`} style={{ width: "110px" }}>Realizadas</th>
-                    <th className={`${th} text-center`} style={{ width: "80px" }}>Desvio</th>
-                    <th className={th} style={{ width: "48px" }}></th>
+                    <th className={`${th} text-center`} style={{ width: "90px" }}>Previstas</th>
+                    <th className={`${th} text-center`} style={{ width: "90px" }}>Realizadas</th>
+                    <th className={`${th} text-center`} style={{ width: "70px" }}>Desvio</th>
+                    <th style={{ width: "36px" }} />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
                   {entries.map(e => (
-                    <tr key={e.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <tr key={e.id} className="group">
                       <td className={td}>
-                        <select
-                          value={e.businessUnit}
-                          onChange={ev => updateEntry(e.id, "businessUnit", ev.target.value)}
-                          className={inputCls}
-                        >
+                        <select value={e.businessUnit} onChange={ev => updateEntry(e.id, "businessUnit", ev.target.value)} className={inputCls}>
                           {bus.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                       </td>
@@ -496,32 +538,25 @@ export default function TimesheetApp() {
                         />
                       </td>
                       <td className={`${td} text-center`}>
-                        <input
-                          type="number" min={0} max={40} step={1}
+                        <input type="number" min={0} max={40} step={1}
                           value={e.hours_forecast}
                           onChange={ev => updateEntry(e.id, "hours_forecast", ev.target.value)}
                           placeholder="0"
-                          className={`${inputCls} text-center tabular-nums`}
-                        />
+                          className={`${inputCls} text-center tabular-nums`} />
                       </td>
                       <td className={`${td} text-center`}>
-                        <input
-                          type="number" min={0} max={40} step={1}
+                        <input type="number" min={0} max={40} step={1}
                           value={e.hours_consolidated}
                           onChange={ev => updateEntry(e.id, "hours_consolidated", ev.target.value)}
                           placeholder="—"
-                          className={`${inputCls} text-center tabular-nums`}
-                        />
+                          className={`${inputCls} text-center tabular-nums`} />
                       </td>
                       <td className={`${td} text-center`}>
                         <Desvio forecast={e.hours_forecast} consolidated={e.hours_consolidated} />
                       </td>
-                      <td className={td}>
-                        <button
-                          onClick={() => removeRow(e.id)}
-                          className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                          title="Remover linha"
-                        >
+                      <td className="pr-3">
+                        <button onClick={() => removeRow(e.id)}
+                          className="w-6 h-6 flex items-center justify-center rounded-full text-[#FF3B30] dark:text-[#FF453A] opacity-0 group-hover:opacity-100 hover:bg-[#FF3B30]/10 transition-all text-[18px] leading-none">
                           ×
                         </button>
                       </td>
@@ -530,71 +565,84 @@ export default function TimesheetApp() {
                 </tbody>
               </table>
 
-              {/* Footer: add row + totals */}
-              <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30">
-                <button onClick={addRow} className="text-sm text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
+              {/* Table footer */}
+              <div className="px-4 py-3 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
+                <button onClick={addRow} className="text-[#007AFF] dark:text-[#0A84FF] text-[15px] font-medium">
                   + Adicionar linha
                 </button>
-                <div className="flex items-center gap-6 text-sm">
-                  <span className="text-slate-500">Total Previsto:</span>
-                  <span className={`font-semibold tabular-nums ${totalForecast > 40 ? "text-red-600" : totalForecast >= 32 ? "text-emerald-600" : "text-slate-900 dark:text-white"}`}>
-                    {totalForecast}h
+                <div className="flex items-center gap-2 text-[13px] text-[#8E8E93]">
+                  <span>
+                    <span className={`font-semibold tabular-nums ${totalForecast > 40 ? "text-[#FF3B30] dark:text-[#FF453A]" : "text-black dark:text-white"}`}>
+                      {totalForecast}h
+                    </span>
+                    {" "}prev.
                   </span>
                   {totalConsolidated > 0 && (
                     <>
-                      <span className="text-slate-400">|</span>
-                      <span className="text-slate-500">Realizado:</span>
-                      <span className="font-semibold tabular-nums">{totalConsolidated}h</span>
-                      <span className="text-slate-400">|</span>
-                      <span className="text-slate-500">Desvio:</span>
-                      <span className={`font-semibold tabular-nums ${desvioTotal > 0 ? "text-red-500" : desvioTotal < 0 ? "text-amber-500" : "text-emerald-600"}`}>
-                        {desvioTotal > 0 ? "+" : ""}{desvioTotal}h
+                      <span className="text-black/20 dark:text-white/20">|</span>
+                      <span>
+                        <span className="font-semibold tabular-nums text-black dark:text-white">{totalConsolidated}h</span>
+                        {" "}real.
                       </span>
+                      <span className="text-black/20 dark:text-white/20">|</span>
+                      <Desvio forecast={totalForecast} consolidated={totalConsolidated} />
                     </>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-wrap items-center gap-3 mb-10">
-              <button onClick={loadFromClickUpForWeek} disabled={loadingWeek} className={btnSecondary}>
+            {/* CTA — Salvar */}
+            <button onClick={save}
+              disabled={saving || (totalForecast === 0 && totalConsolidated === 0) || !person}
+              className={btnBlue}>
+              {saving ? "Salvando…" : "Salvar"}
+            </button>
+
+            {/* Limpar — texto destrutivo */}
+            <button onClick={clearEntries}
+              className="w-full mt-2 py-3 text-[15px] text-[#FF3B30] dark:text-[#FF453A] font-medium transition-opacity hover:opacity-70">
+              Limpar
+            </button>
+          </>
+        )}
+
+        {/* ══════════════════════════════════════════
+            VISÃO GERAL  (jornada do gestor)
+        ══════════════════════════════════════════ */}
+        {view === "dashboard" && (
+          <>
+            {/* Load controls */}
+            <div className="flex flex-wrap items-center gap-2 mb-6">
+              <button onClick={loadFromClickUp} disabled={loadingWeek || !person} className={btnGhost}>
                 {loadingWeek ? "Carregando…" : "Carregar Semana"}
               </button>
-              <button onClick={clearEntries} className={btnSecondary}>Limpar</button>
-              <div className="ml-auto flex gap-3">
-                <button onClick={saveForecast} disabled={saving || totalForecast === 0} className={btnPrimary}>
-                  {saving ? "Salvando…" : "Salvar Previsão"}
-                </button>
-                <button onClick={saveConsolidated} disabled={saving || totalConsolidated === 0} className={`${btnSecondary} border-slate-900 dark:border-white font-medium`}>
-                  {saving ? "Salvando…" : "Salvar Realizado"}
-                </button>
-              </div>
+              <button onClick={loadYear} disabled={loadingWeek} className={btnGhost}>
+                Carregar Ano
+              </button>
+              <button onClick={exportExcel} className={`${btnGhost} ml-auto`}>
+                Excel
+              </button>
             </div>
 
-            {/* ── Registros (collapsible) ── */}
-            <div className={card}>
-              <button
-                onClick={() => setDbOpen(v => !v)}
-                className="w-full px-5 py-3.5 flex items-center justify-between text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors rounded-xl"
-              >
-                <span>Registros do ClickUp <span className="text-slate-400 font-normal ml-1">({db.length})</span></span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={async e => { e.stopPropagation(); try { setLoadingWeek(true); const r = await loadLastYear(selectedYear); setDb(r); setPreviewPage(1); setDbOpen(true); showToast(`${r.length} registros.`); } catch { showToast("Erro."); } finally { setLoadingWeek(false); } }}
-                    className="text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white px-2 py-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700"
-                    disabled={loadingWeek}
-                  >
-                    {loadingWeek ? "…" : "Carregar Ano"}
-                  </button>
-                  <span className="text-slate-400">{dbOpen ? "▲" : "▼"}</span>
+            {/* Dashboard charts */}
+            <Dashboard db={db} />
+
+            {/* Records */}
+            <div className={`${card} mt-5`}>
+              <button onClick={() => setDbOpen(v => !v)}
+                className="w-full px-5 py-4 flex items-center justify-between rounded-2xl hover:bg-[#F2F2F7]/60 dark:hover:bg-[#2C2C2E]/60 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-[17px]">Registros</span>
+                  <span className="text-[13px] text-[#8E8E93] font-normal">{db.length}</span>
                 </div>
+                <span className="text-[#8E8E93] text-[13px]">{dbOpen ? "▲" : "▼"}</span>
               </button>
 
               {dbOpen && (
-                <div className="border-t border-slate-100 dark:border-slate-800">
-                  {/* Filter + page size */}
-                  <div className="px-5 py-3 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="border-t border-black/[0.06] dark:border-white/[0.06]">
+                  {/* Filter bar */}
+                  <div className="px-4 py-3 flex items-center gap-2 border-b border-black/[0.04] dark:border-white/[0.04]">
                     <input
                       value={dbFilter}
                       onChange={e => setDbFilter(e.target.value)}
@@ -602,46 +650,44 @@ export default function TimesheetApp() {
                       className={`${inputCls} max-w-xs`}
                     />
                     {dbFilter && (
-                      <button onClick={() => setDbFilter("")} className="text-xs text-slate-400 hover:text-slate-700">
-                        Limpar
-                      </button>
+                      <button onClick={() => setDbFilter("")} className="text-[13px] text-[#8E8E93] hover:text-black dark:hover:text-white">Limpar</button>
                     )}
-                    <span className="ml-auto text-xs text-slate-400">
-                      {filteredDb.length} registro{filteredDb.length !== 1 ? "s" : ""}
-                    </span>
+                    <span className="ml-auto text-[13px] text-[#8E8E93]">{filteredDb.length} registros</span>
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full min-w-[600px]">
                       <thead>
-                        <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                        <tr className="border-b border-black/[0.06] dark:border-white/[0.06] bg-[#F9F9F9] dark:bg-[#2C2C2E]/40">
                           {[
-                            { k: "ISO_Week", label: "Sem." },
-                            { k: "Person", label: "Pessoa" },
-                            { k: "Project", label: "Projeto" },
-                            { k: "Business_Unit", label: "Centro de Custo" },
-                            { k: "Hours_Forecast", label: "Previstas" },
-                            { k: "Hours_Consolidated", label: "Realizadas" },
-                            { k: "_desvio", label: "Desvio" },
+                            { k: "ISO_Week",           label: "Sem." },
+                            { k: "Person",             label: "Pessoa" },
+                            { k: "Project",            label: "Projeto" },
+                            { k: "Business_Unit",      label: "CC" },
+                            { k: "Hours_Forecast",     label: "Prev." },
+                            { k: "Hours_Consolidated", label: "Real." },
+                            { k: "_desvio",            label: "Desvio" },
                           ].map(col => (
                             <th key={col.k} className={th}>
                               {col.k === "_desvio" ? col.label : (
-                                <button onClick={() => toggleSort(col.k)} className="flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200">
+                                <button onClick={() => toggleSort(col.k)} className="flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors">
                                   {col.label}
-                                  {previewSort.field === col.k && <span className="text-slate-400">{previewSort.dir === "asc" ? "↑" : "↓"}</span>}
+                                  {previewSort.field === col.k && (
+                                    <span className="text-[#007AFF] dark:text-[#0A84FF]">{previewSort.dir === "asc" ? "↑" : "↓"}</span>
+                                  )}
                                 </button>
                               )}
                             </th>
                           ))}
-                          <th className={th}></th>
+                          <th />
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
                         {pagedDb.map(r => (
-                          <tr key={r.ID} className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                          <tr key={r.ID} className="group hover:bg-[#F2F2F7]/50 dark:hover:bg-[#2C2C2E]/50 transition-colors">
                             {editingId === r.ID ? (
                               <>
-                                <td className={td}><span className="text-slate-400">W{toTwo(r.ISO_Week)}</span></td>
+                                <td className={td}><span className="text-[#8E8E93] text-[13px] tabular-nums">W{toTwo(r.ISO_Week)}</span></td>
                                 <td className={td}><Combobox value={editingValues.Person} onChange={v => changeEditing("Person", v)} options={people} placeholder="Pessoa…" className={inputCls} /></td>
                                 <td className={td}><Combobox value={editingValues.Project} onChange={v => changeEditing("Project", v)} options={projects} placeholder="Projeto…" className={inputCls} /></td>
                                 <td className={td}>
@@ -649,40 +695,39 @@ export default function TimesheetApp() {
                                     {bus.map(b => <option key={b} value={b}>{b}</option>)}
                                   </select>
                                 </td>
-                                <td className={td}><input type="number" min={0} max={40} className={`${inputCls} text-center w-16`} value={editingValues.Hours_Forecast ?? ""} onChange={e => changeEditing("Hours_Forecast", e.target.value)} /></td>
-                                <td className={td}><input type="number" min={0} max={40} className={`${inputCls} text-center w-16`} value={editingValues.Hours_Consolidated ?? ""} onChange={e => changeEditing("Hours_Consolidated", e.target.value)} /></td>
-                                <td className={td}></td>
-                                <td className={`${td} text-right`}>
-                                  <div className="flex gap-2 justify-end">
-                                    <button onClick={saveEditRow} className={btnPrimary} style={{ padding: "4px 10px" }}>Salvar</button>
-                                    <button onClick={cancelEditRow} className={btnSecondary} style={{ padding: "4px 10px" }}>↩</button>
+                                <td className={td}><input type="number" min={0} max={40} className={`${inputCls} w-16 text-center`} value={editingValues.Hours_Forecast ?? ""} onChange={e => changeEditing("Hours_Forecast", e.target.value)} /></td>
+                                <td className={td}><input type="number" min={0} max={40} className={`${inputCls} w-16 text-center`} value={editingValues.Hours_Consolidated ?? ""} onChange={e => changeEditing("Hours_Consolidated", e.target.value)} /></td>
+                                <td className={td} />
+                                <td className={td}>
+                                  <div className="flex gap-2">
+                                    <button onClick={saveEditRow} className="px-3 py-1.5 rounded-[8px] bg-[#007AFF] dark:bg-[#0A84FF] text-white text-[13px] font-medium">Salvar</button>
+                                    <button onClick={cancelEditRow} className="px-3 py-1.5 rounded-[8px] bg-[#F2F2F7] dark:bg-[#3A3A3C] text-[13px]">↩</button>
                                   </div>
                                 </td>
                               </>
                             ) : (
                               <>
-                                <td className={`${td} tabular-nums text-slate-500`}>W{toTwo(r.ISO_Week)}</td>
-                                <td className={`${td} font-medium`}>{r.Person}</td>
-                                <td className={td}>{r.Project}</td>
+                                <td className={`${td} tabular-nums text-[#8E8E93] text-[13px]`}>W{toTwo(r.ISO_Week)}</td>
+                                <td className={`${td} font-medium text-[15px]`}>{r.Person}</td>
+                                <td className={`${td} text-[15px]`}>{r.Project}</td>
                                 <td className={td}>
-                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                  <span className="inline-block px-2 py-0.5 rounded-full text-[11px] bg-[#F2F2F7] dark:bg-[#3A3A3C] text-[#8E8E93]">
                                     {r.Business_Unit}
                                   </span>
                                 </td>
-                                <td className={`${td} text-center tabular-nums`}>{r.Hours_Forecast ?? "—"}</td>
-                                <td className={`${td} text-center tabular-nums`}>
-                                  {r.Hours_Consolidated != null ? r.Hours_Consolidated : <span className="text-slate-300 text-xs">—</span>}
+                                <td className={`${td} text-center tabular-nums text-[15px]`}>{r.Hours_Forecast ?? "—"}</td>
+                                <td className={`${td} text-center tabular-nums text-[15px]`}>
+                                  {r.Hours_Consolidated != null ? r.Hours_Consolidated : <span className="text-[#8E8E93]">—</span>}
                                 </td>
                                 <td className={`${td} text-center`}>
                                   {r.Hours_Consolidated != null
                                     ? <Desvio forecast={r.Hours_Forecast} consolidated={r.Hours_Consolidated} />
-                                    : <span className="text-slate-300 text-xs">—</span>
-                                  }
+                                    : <span className="text-[#8E8E93]">—</span>}
                                 </td>
-                                <td className={`${td} text-right`}>
-                                  <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => startEditRow(r)} className={btnSecondary} style={{ padding: "3px 8px" }}>✏</button>
-                                    <button onClick={() => deleteDbRow(r)} className={`${btnSecondary} hover:border-red-300 hover:text-red-500`} style={{ padding: "3px 8px" }}>×</button>
+                                <td className={td}>
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => startEditRow(r)} className="px-2 py-1 rounded-[6px] text-[#007AFF] dark:text-[#0A84FF] hover:bg-[#007AFF]/10 text-[13px] transition-colors">✏</button>
+                                    <button onClick={() => deleteDbRow(r)} className="px-2 py-1 rounded-[6px] text-[#FF3B30] dark:text-[#FF453A] hover:bg-[#FF3B30]/10 text-[13px] transition-colors">×</button>
                                   </div>
                                 </td>
                               </>
@@ -691,10 +736,8 @@ export default function TimesheetApp() {
                         ))}
                         {!pagedDb.length && (
                           <tr>
-                            <td colSpan={8} className="py-10 text-center text-sm text-slate-400">
-                              {db.length === 0
-                                ? 'Nenhum registro. Use "Carregar Semana" ou "Carregar Ano".'
-                                : "Nenhum resultado para o filtro."}
+                            <td colSpan={8} className="py-12 text-center text-[15px] text-[#8E8E93]">
+                              {db.length === 0 ? 'Use "Carregar Semana" ou "Carregar Ano".' : "Nenhum resultado para o filtro."}
                             </td>
                           </tr>
                         )}
@@ -702,13 +745,12 @@ export default function TimesheetApp() {
                     </table>
                   </div>
 
-                  {/* Pagination */}
                   {totalPages > 1 && (
-                    <div className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <span className="text-xs text-slate-400">Página {currentPage} de {totalPages}</span>
+                    <div className="px-4 py-3 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
+                      <span className="text-[13px] text-[#8E8E93]">Página {currentPage} de {totalPages}</span>
                       <div className="flex gap-2">
-                        <button onClick={() => setPreviewPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className={btnSecondary} style={{ padding: "4px 10px" }}>←</button>
-                        <button onClick={() => setPreviewPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className={btnSecondary} style={{ padding: "4px 10px" }}>→</button>
+                        <button onClick={() => setPreviewPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1} className={`${btnGhost} py-1.5 px-3`}>←</button>
+                        <button onClick={() => setPreviewPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} className={`${btnGhost} py-1.5 px-3`}>→</button>
                       </div>
                     </div>
                   )}
@@ -718,53 +760,58 @@ export default function TimesheetApp() {
           </>
         )}
 
-        {view === "dashboard" && <Dashboard db={db} />}
         {view === "directory" && <Directory onListsChanged={loadLists} />}
       </main>
 
       {/* ── Toast ── */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-          <div className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium px-4 py-3 rounded-xl shadow-lg">
+        <div className="fixed bottom-28 sm:bottom-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="backdrop-blur-2xl bg-black/80 dark:bg-[#F2F2F7]/90 text-white dark:text-black text-[15px] font-medium px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap">
             {toast}
           </div>
         </div>
       )}
 
-      {/* ── Help modal ── */}
+      {/* ── Help modal — slides up from bottom on mobile ── */}
       {helpOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setHelpOpen(false)} />
-          <div className={`relative w-full max-w-sm ${card} p-6 shadow-xl`}>
+          <div className={`relative w-full sm:max-w-sm ${card} pt-6 pb-8 px-6 shadow-2xl rounded-t-3xl sm:rounded-2xl`}>
+            {/* Pull handle */}
+            <div className="sm:hidden w-10 h-1 rounded-full bg-[#8E8E93]/40 mx-auto mb-6" />
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-semibold text-base">Atalhos de teclado</h2>
-              <button onClick={() => setHelpOpen(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">×</button>
+              <h2 className="font-semibold text-[17px]">Atalhos</h2>
+              <button onClick={() => setHelpOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F2F2F7] dark:bg-[#3A3A3C] text-[#8E8E93] hover:text-black dark:hover:text-white text-[18px] leading-none">
+                ×
+              </button>
             </div>
-            <div className="space-y-2 text-sm">
-              {[
-                ["Shift + 1", "Timesheet"],
-                ["Shift + 2", "Dashboard"],
-                ["Shift + 3", "Cadastros"],
-                ["?  ou  Ctrl+K", "Esta ajuda"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex items-center justify-between">
-                  <code className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">{k}</code>
-                  <span className="text-slate-500">{v}</span>
-                </div>
-              ))}
+            <div className={`${card} overflow-hidden`}>
+              <div className={sep}>
+                {[
+                  ["Shift + 1", "Lançar"],
+                  ["Shift + 2", "Visão Geral"],
+                  ["?  ou  Ctrl+K", "Esta ajuda"],
+                ].map(([k, v]) => (
+                  <div key={k} className="px-4 py-3 flex items-center justify-between">
+                    <code className="px-2 py-1 rounded-[6px] bg-[#F2F2F7] dark:bg-[#3A3A3C] font-mono text-[13px]">{k}</code>
+                    <span className="text-[15px] text-[#8E8E93]">{v}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* ── Bottom nav — mobile only ── */}
-      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-slate-900 border-t border-slate-700 flex">
-        {TAB.map(t => (
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-30 backdrop-blur-2xl bg-white/80 dark:bg-black/80 border-t border-black/[0.08] dark:border-white/[0.08] flex">
+        {TABS.map(t => (
           <button key={t.k} onClick={() => setView(t.k)}
-            className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 text-xs transition-colors ${
-              view === t.k ? "text-white" : "text-slate-400"
+            className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
+              view === t.k ? "text-[#007AFF] dark:text-[#0A84FF]" : "text-[#8E8E93]"
             }`}>
-            <span className="text-lg leading-none">{TAB_ICONS[t.k]}</span>
+            <span className="text-[22px] leading-none">{t.icon}</span>
             {t.label}
           </button>
         ))}

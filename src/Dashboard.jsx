@@ -1,340 +1,248 @@
 import React, { useMemo, useState } from "react";
 
-function groupTotals(rows, key) {
-  const map = new Map();
-  for (const r of rows || []) {
-    const groupKey = r?.[key] || "—";
-    const total = Number(r?.Total) || 0;
-    const agg = map.get(groupKey) || { name: groupKey, total: 0, people: new Set(), projects: new Set() };
-    agg.total += total;
-    if (r?.Person) agg.people.add(r.Person);
-    if (r?.Project) agg.projects.add(r.Project);
-    map.set(groupKey, agg);
-  }
-  return Array.from(map.values()).map((x) => ({
-    name: x.name,
-    total: x.total,
-    peopleCount: x.people.size,
-    projectsCount: x.projects.size,
-  }));
+const card = "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden";
+const th = "px-4 py-2.5 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap";
+const td = "px-4 py-2.5 text-sm";
+
+function Desvio({ d }) {
+  if (d == null) return <span className="text-slate-300 text-xs">—</span>;
+  if (d === 0) return <span className="text-emerald-600 tabular-nums font-medium">0h</span>;
+  if (d > 0)   return <span className="text-red-500 tabular-nums font-medium">+{d}h</span>;
+  return              <span className="text-amber-500 tabular-nums font-medium">{d}h</span>;
 }
 
-function Bars({ data, title, subtitle }) {
-  const max = useMemo(() => Math.max(1, ...data.map((d) => d.total)), [data]);
+function BarChart({ title, data, valueKey = "forecast" }) {
+  const max = useMemo(() => Math.max(1, ...data.map(d => Math.max(d.forecast || 0, d.consolidated || 0))), [data]);
   return (
-    <section className="p-4 bg-white rounded-2xl shadow-sm border">
-      <div className="mb-3">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        {subtitle ? <div className="text-sm text-gray-500">{subtitle}</div> : null}
+    <div className={card}>
+      <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+        <h3 className="font-semibold text-sm">{title}</h3>
       </div>
       {!data.length ? (
-        <div className="text-sm text-gray-500">Sem dados.</div>
+        <div className="px-5 py-8 text-sm text-slate-400 text-center">Sem dados.</div>
       ) : (
-        <div className="space-y-2">
-          {data.map((d) => (
-            <div key={d.name} className="grid grid-cols-[minmax(120px,180px)_1fr_80px] items-center gap-3">
-              <div className="truncate" title={d.name}>{d.name}</div>
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-black/80"
-                  style={{ width: `${Math.round((d.total / max) * 100)}%` }}
-                />
+        <div className="p-5 space-y-3">
+          {data.map(d => (
+            <div key={d.name}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm truncate max-w-[180px]" title={d.name}>{d.name}</span>
+                <div className="flex gap-3 text-xs tabular-nums text-slate-500">
+                  {d.consolidated != null && <span className="text-slate-700 dark:text-slate-300 font-medium">{d.consolidated}h real</span>}
+                  <span>{d.forecast}h prev</span>
+                </div>
               </div>
-              <div className="text-right tabular-nums">{d.total}h</div>
+              <div className="flex gap-0.5 h-2">
+                <div className="h-full rounded-full bg-slate-800 dark:bg-slate-300" style={{ width: `${Math.round((d.forecast / max) * 100)}%`, minWidth: d.forecast > 0 ? 2 : 0 }} />
+                {d.consolidated != null && (
+                  <div className={`h-full rounded-full opacity-60 ${d.consolidated > d.forecast ? "bg-red-400" : "bg-emerald-400"}`} style={{ width: `${Math.round((d.consolidated / max) * 100)}%`, minWidth: d.consolidated > 0 ? 2 : 0 }} />
+                )}
+              </div>
             </div>
           ))}
+          <div className="flex gap-4 pt-1 text-xs text-slate-400">
+            <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded bg-slate-800 dark:bg-slate-300 inline-block" />Previsto</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded bg-emerald-400 inline-block opacity-60" />Realizado</span>
+          </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
-function TableBU({ data }) {
-  return (
-    <section className="p-4 bg-white rounded-2xl shadow-sm border">
-      <div className="mb-3">
-        <h3 className="text-lg font-semibold">Por Unidade de Negócio</h3>
-        <div className="text-sm text-gray-500">Horas totais, nº de pessoas e nº de projetos por BU</div>
-      </div>
-      {!data.length ? (
-        <div className="text-sm text-gray-500">Sem dados.</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-600">
-                <th className="py-2 pr-2">BU</th>
-                <th className="py-2 pr-2 text-right">Horas</th>
-                <th className="py-2 pr-2 text-right">Pessoas</th>
-                <th className="py-2 pr-2 text-right">Projetos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((d) => (
-                <tr key={d.name} className="border-t">
-                  <td className="py-2 pr-2">{d.name}</td>
-                  <td className="py-2 pr-2 text-right tabular-nums">{d.total}</td>
-                  <td className="py-2 pr-2 text-right tabular-nums">{d.peopleCount}</td>
-                  <td className="py-2 pr-2 text-right tabular-nums">{d.projectsCount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
+function groupBy(rows, key) {
+  const map = new Map();
+  for (const r of rows || []) {
+    const g = r[key] || "—";
+    const agg = map.get(g) || { name: g, forecast: 0, consolidated: 0, hasConsolidated: false, count: 0 };
+    agg.forecast += Number(r.Hours_Forecast) || 0;
+    if (r.Hours_Consolidated != null) { agg.consolidated += Number(r.Hours_Consolidated) || 0; agg.hasConsolidated = true; }
+    agg.count++;
+    map.set(g, agg);
+  }
+  return Array.from(map.values())
+    .map(x => ({ ...x, consolidated: x.hasConsolidated ? x.consolidated : null }))
+    .sort((a, b) => b.forecast - a.forecast);
 }
 
 export default function Dashboard({ db }) {
   const [personFilter, setPersonFilter] = useState("");
-  const [projectFilter, setProjectFilter] = useState("");
+  const [weekFilter, setWeekFilter] = useState("");
 
-  const allPersons = useMemo(() => Array.from(new Set((db||[]).map(r=>r.Person).filter(Boolean))).sort(), [db]);
-  const allProjects = useMemo(() => Array.from(new Set((db||[]).map(r=>r.Project).filter(Boolean))).sort(), [db]);
+  const allPeople  = useMemo(() => [...new Set((db||[]).map(r => r.Person).filter(Boolean))].sort(), [db]);
+  const allWeeks   = useMemo(() => [...new Set((db||[]).map(r => r.ISO_Week).filter(Boolean))].sort((a,b) => a-b), [db]);
 
-  const filteredDb = useMemo(() => {
+  const filtered = useMemo(() => {
     let rows = db || [];
     if (personFilter) rows = rows.filter(r => r.Person === personFilter);
-    if (projectFilter) rows = rows.filter(r => r.Project === projectFilter);
+    if (weekFilter)   rows = rows.filter(r => String(r.ISO_Week) === weekFilter);
     return rows;
-  }, [db, personFilter, projectFilter]);
+  }, [db, personFilter, weekFilter]);
 
-  const byPerson = useMemo(() =>
-    groupTotals(filteredDb, "Person").sort((a, b) => b.total - a.total),
-    [filteredDb]
-  );
-  const byProject = useMemo(() =>
-    groupTotals(filteredDb, "Project").sort((a, b) => b.total - a.total),
-    [filteredDb]
-  );
-  const byBU = useMemo(() =>
-    groupTotals(filteredDb, "Business_Unit").sort((a, b) => b.total - a.total),
-    [filteredDb]
-  );
+  const byPerson  = useMemo(() => groupBy(filtered, "Person"), [filtered]);
+  const byProject = useMemo(() => groupBy(filtered, "Project"), [filtered]);
+  const byCC      = useMemo(() => groupBy(filtered, "Business_Unit"), [filtered]);
 
-  function toWeekKey(row) {
-    const d = row?.Week_Start ? new Date(row.Week_Start) : null;
-    if (!d || isNaN(d)) return String(row?.Year||"").padStart(4,"0")+"-W"+String(row?.ISO_Week||"").padStart(2,"0");
-    const y = d.getFullYear();
-    const w = String(row?.ISO_Week || 0).padStart(2, "0");
-    return `${y}-W${w}`;
-  }
-  function toMonthKey(row) {
-    const d = row?.Week_Start ? new Date(row.Week_Start) : null;
-    const y = d && !isNaN(d) ? d.getFullYear() : (row?.Year||"");
-    const m = d && !isNaN(d) ? String(d.getMonth()+1).padStart(2,"0") : "01";
-    return `${y}-${m}`;
-  }
-
-  // Weekly series for person filter
-  const weeklyPersonSeries = useMemo(() => {
-    if (!personFilter) return null;
-    const map = new Map(); const weeks = new Map();
-    for (const r of (db||[])) {
-      if (r.Person !== personFilter) continue;
-      const wk = toWeekKey(r);
-      const dateKey = r.Week_Start || wk;
-      weeks.set(wk, dateKey);
-      map.set(wk, (map.get(wk)||0) + (Number(r.Total)||0));
+  // Semanas abertas: tem previsão mas não tem consolidado
+  const openWeeks = useMemo(() => {
+    const map = new Map();
+    for (const r of db || []) {
+      const key = `${r.Year}-W${String(r.ISO_Week).padStart(2,"0")}|${r.Person}`;
+      const cur = map.get(key) || { key, year: r.Year, week: r.ISO_Week, person: r.Person, hasForecast: false, hasConsolidated: false };
+      if (r.Hours_Forecast) cur.hasForecast = true;
+      if (r.Hours_Consolidated != null) cur.hasConsolidated = true;
+      map.set(key, cur);
     }
-    const entries = Array.from(map.entries()).map(([wk, total])=>({ wk, total, dateKey: weeks.get(wk) }));
-    entries.sort((a,b)=> String(a.dateKey).localeCompare(String(b.dateKey)));
-    return entries;
-  }, [db, personFilter]);
-
-  // Weekly series by person for a selected project
-  const weeklyByPersonForProject = useMemo(() => {
-    if (!projectFilter) return [];
-    const byPersonMap = new Map();
-    const allWeeks = new Set();
-    for (const r of (db||[])) {
-      if (r.Project !== projectFilter) continue;
-      const wk = toWeekKey(r);
-      allWeeks.add(r.Week_Start || wk);
-      const person = r.Person || "—";
-      const m = byPersonMap.get(person) || new Map();
-      m.set(wk, (m.get(wk)||0) + (Number(r.Total)||0));
-      byPersonMap.set(person, m);
-    }
-    const weeksSorted = Array.from(allWeeks).sort((a,b)=> String(a).localeCompare(String(b)));
-    // Build array of { person, series: number[], total }
-    return Array.from(byPersonMap.entries()).map(([person, m]) => {
-      // derive weekKey from weekStart ordering
-      const series = weeksSorted.map(ws => {
-        // rebuild wk from date string by finding a row with that week_start
-        // fallback: use ws as key
-        const wkCandidates = Array.from(m.keys());
-        // try direct match on wk end if present; otherwise sum 0
-        // since we can't reconstruct ISO week reliably here, take m.get of any key whose string appears in ws or last 2 digits
-        // simpler: try all keys and pick if ws includes the ISO week segment
-        let val = 0;
-        for (const k of wkCandidates) { if (ws.includes(k.split("-W")[1])) { val = m.get(k) || 0; break; } }
-        if (!val && m.has(ws)) val = m.get(ws) || 0;
-        return val;
-      });
-      const total = series.reduce((s,n)=>s+n,0);
-      return { person, series, total, weeksLabels: weeksSorted };
-    }).sort((a,b)=> b.total - a.total);
-  }, [db, projectFilter]);
-
-  // Monthly proportionality per project
-  const monthlyProportion = useMemo(() => {
-    const monthTotals = new Map(); // month -> total hours
-    const monthProject = new Map(); // month -> Map(project -> hours)
-    for (const r of (db||[])) {
-      const mk = toMonthKey(r);
-      const pt = Number(r.Total)||0;
-      monthTotals.set(mk, (monthTotals.get(mk)||0) + pt);
-      const mp = monthProject.get(mk) || new Map();
-      mp.set(r.Project || "—", (mp.get(r.Project||"—")||0) + pt);
-      monthProject.set(mk, mp);
-    }
-    const months = Array.from(monthTotals.keys()).sort();
-    const rows = months.map((mk) => {
-      const total = monthTotals.get(mk) || 0;
-      const mp = monthProject.get(mk) || new Map();
-      const projects = Array.from(mp.entries()).map(([name, hours])=>({
-        name, hours, pct: total ? Math.round((hours/total)*100) : 0
-      })).sort((a,b)=> b.hours - a.hours);
-      return { month: mk, total, projects };
-    });
-    return rows;
+    return Array.from(map.values())
+      .filter(x => x.hasForecast && !x.hasConsolidated)
+      .sort((a,b) => b.year - a.year || b.week - a.week);
   }, [db]);
 
-  const hasData = (db && db.length) > 0;
+  const totalForecast     = useMemo(() => filtered.reduce((s,r) => s + (Number(r.Hours_Forecast)||0), 0), [filtered]);
+  const totalConsolidated = useMemo(() => filtered.reduce((s,r) => s + (Number(r.Hours_Consolidated)||0), 0), [filtered]);
+  const hasData = (db && db.length > 0);
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-base">Dashboard</h2>
+      </div>
+
       {/* Filters */}
-      <section className="mb-4 p-4 bg-white rounded-2xl shadow-sm border grid gap-3 md:grid-cols-3">
-        <label className="text-sm">Pessoa
-          <select className="w-full mt-1 rounded-xl border px-3 py-2" value={personFilter} onChange={(e)=>setPersonFilter(e.target.value)}>
-            <option value="">Todas</option>
-            {allPersons.map(p => (<option key={p} value={p}>{p}</option>))}
-          </select>
-        </label>
-        <label className="text-sm">Projeto
-          <select className="w-full mt-1 rounded-xl border px-3 py-2" value={projectFilter} onChange={(e)=>setProjectFilter(e.target.value)}>
-            <option value="">Todos</option>
-            {allProjects.map(p => (<option key={p} value={p}>{p}</option>))}
-          </select>
-        </label>
-        <div className="flex items-end">
-          <button onClick={()=>{setPersonFilter(""); setProjectFilter("");}} className="rounded-xl border px-3 py-2 w-full">Limpar filtros</button>
+      <div className={`${card} p-4`}>
+        <div className="flex flex-wrap gap-3">
+          <div className="flex-1 min-w-[160px]">
+            <label className="block text-xs text-slate-500 mb-1">Pessoa</label>
+            <select
+              value={personFilter}
+              onChange={e => setPersonFilter(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none"
+            >
+              <option value="">Todas</option>
+              {allPeople.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <label className="block text-xs text-slate-500 mb-1">Semana</label>
+            <select
+              value={weekFilter}
+              onChange={e => setWeekFilter(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none"
+            >
+              <option value="">Todas</option>
+              {allWeeks.map(w => <option key={w} value={String(w)}>Semana {String(w).padStart(2,"0")}</option>)}
+            </select>
+          </div>
+          {(personFilter || weekFilter) && (
+            <div className="flex items-end">
+              <button
+                onClick={() => { setPersonFilter(""); setWeekFilter(""); }}
+                className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                Limpar
+              </button>
+            </div>
+          )}
         </div>
-      </section>
+      </div>
+
       {!hasData && (
-        <div className="mb-4 p-3 rounded-xl border bg-yellow-50 text-yellow-800 text-sm">
-          Sem dados na base local. Use "Adicionar à Base" ou "Carregar Semana" para popular o dashboard.
+        <div className="text-sm text-slate-400 text-center py-8">
+          Sem dados. Carregue uma semana ou o ano completo no Timesheet.
         </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Bars title="Horas por Pessoa" subtitle="Soma de Total por pessoa (aplica filtros)" data={byPerson} />
-        <Bars title="Horas por Projeto" subtitle="Soma de Total por projeto (aplica filtros)" data={byProject} />
-      </div>
+      {hasData && (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Registros", value: filtered.length },
+              { label: "Previstas (h)", value: totalForecast },
+              { label: "Realizadas (h)", value: totalConsolidated > 0 ? totalConsolidated : "—" },
+              {
+                label: "Desvio",
+                value: totalConsolidated > 0 ? `${totalConsolidated - totalForecast > 0 ? "+" : ""}${totalConsolidated - totalForecast}h` : "—",
+                color: totalConsolidated > 0 ? (totalConsolidated > totalForecast ? "text-red-500" : totalConsolidated < totalForecast ? "text-amber-500" : "text-emerald-600") : ""
+              },
+            ].map(k => (
+              <div key={k.label} className={`${card} px-5 py-4`}>
+                <div className="text-xs text-slate-500 mb-1">{k.label}</div>
+                <div className={`text-2xl font-semibold tabular-nums ${k.color || ""}`}>{k.value}</div>
+              </div>
+            ))}
+          </div>
 
-      <div className="mt-6">
-        <TableBU data={byBU} />
-      </div>
+          {/* Charts */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <BarChart title="Por Pessoa" data={byPerson} />
+            <BarChart title="Por Projeto" data={byProject} />
+          </div>
+          <BarChart title="Por Centro de Custo" data={byCC} />
 
-      {/* Weekly evolution for selected person */}
-      {personFilter && (
-        <section className="mt-6 p-4 bg-white rounded-2xl shadow-sm border">
-          <h3 className="text-lg font-semibold mb-2">Evolução Semanal – {personFilter}</h3>
-          {!weeklyPersonSeries?.length ? (
-            <div className="text-sm text-gray-500">Sem dados.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="min-w-[640px] grid grid-rows-2 gap-2">
-                <div className="flex items-end gap-1 h-24">
-                  {(() => {
-                    const max = Math.max(1, ...weeklyPersonSeries.map(p=>p.total));
-                    return weeklyPersonSeries.map((p) => (
-                      <div key={p.wk} className="w-2 bg-black/80" title={`${p.wk}: ${p.total}h`} style={{ height: `${(p.total/max)*100}%` }} />
-                    ));
-                  })()}
-                </div>
-                <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                  {weeklyPersonSeries.map((p)=> (
-                    <div key={p.wk} className="w-2 rotate-45 origin-top-left whitespace-nowrap" title={p.wk}>{p.wk.split("-W")[1]}</div>
-                  ))}
-                </div>
+          {/* Comparativo previsão vs real */}
+          {byPerson.some(p => p.consolidated != null) && (
+            <div className={card}>
+              <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-semibold text-sm">Comparativo Previsão vs Realizado</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                      <th className={th}>Pessoa</th>
+                      <th className={`${th} text-right`}>Previstas</th>
+                      <th className={`${th} text-right`}>Realizadas</th>
+                      <th className={`${th} text-right`}>Desvio</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {byPerson.map(p => (
+                      <tr key={p.name} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className={`${td} font-medium`}>{p.name}</td>
+                        <td className={`${td} text-right tabular-nums`}>{p.forecast}h</td>
+                        <td className={`${td} text-right tabular-nums`}>{p.consolidated != null ? `${p.consolidated}h` : "—"}</td>
+                        <td className={`${td} text-right`}>
+                          <Desvio d={p.consolidated != null ? p.consolidated - p.forecast : null} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
-        </section>
-      )}
 
-      {/* Weekly evolution per person for selected project */}
-      {projectFilter && (
-        <section className="mt-6 p-4 bg-white rounded-2xl shadow-sm border">
-          <h3 className="text-lg font-semibold mb-2">Evolução por Pessoa no Projeto – {projectFilter}</h3>
-          {!weeklyByPersonForProject.length ? (
-            <div className="text-sm text-gray-500">Sem dados.</div>
-          ) : (
-            <div className="space-y-3">
-              {weeklyByPersonForProject.map((row) => (
-                <div key={row.person}>
-                  <div className="text-sm mb-1">{row.person} <span className="text-gray-500">({row.total}h)</span></div>
-                  <div className="flex items-end gap-1 h-16">
-                    {(() => {
-                      const max = Math.max(1, ...row.series);
-                      return row.series.map((v, idx) => (
-                        <div key={idx} className="w-2 bg-black/70" title={`${row.weeksLabels[idx]}: ${v}h`} style={{ height: `${(v/max)*100}%` }} />
-                      ));
-                    })()}
-                  </div>
-                </div>
-              ))}
+          {/* Semanas abertas */}
+          {openWeeks.length > 0 && (
+            <div className={card}>
+              <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <h3 className="font-semibold text-sm">Semanas sem Consolidado</h3>
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{openWeeks.length}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                      <th className={th}>Semana</th>
+                      <th className={th}>Ano</th>
+                      <th className={th}>Pessoa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {openWeeks.map(x => (
+                      <tr key={x.key} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                        <td className={`${td} tabular-nums`}>W{String(x.week).padStart(2,"0")}</td>
+                        <td className={`${td} tabular-nums`}>{x.year}</td>
+                        <td className={`${td} font-medium`}>{x.person}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
-        </section>
+        </>
       )}
-
-      {/* Monthly proportionality by project */}
-      <section className="mt-6 p-4 bg-white rounded-2xl shadow-sm border">
-        <h3 className="text-lg font-semibold mb-2">Proporção Mensal de Horas por Projeto</h3>
-        {!monthlyProportion.length ? (
-          <div className="text-sm text-gray-500">Sem dados.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-600">
-                  <th className="py-2 pr-2">Mês</th>
-                  <th className="py-2 pr-2">Top Projetos (participação %)</th>
-                  <th className="py-2 pr-2 text-right">Total (h)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {monthlyProportion.map((m) => (
-                  <tr key={m.month} className="border-t align-top">
-                    <td className="py-2 pr-2 whitespace-nowrap">{m.month}</td>
-                    <td className="py-2 pr-2">
-                      <div className="space-y-1">
-                        {m.projects.slice(0,5).map((p) => (
-                          <div key={p.name} className="grid grid-cols-[180px_1fr_50px] items-center gap-2">
-                            <div className="truncate" title={p.name}>{p.name}</div>
-                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-black/80" style={{ width: `${p.pct}%` }} />
-                            </div>
-                            <div className="text-right tabular-nums">{p.pct}%</div>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="py-2 pr-2 text-right tabular-nums">{m.total}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </main>
+    </div>
   );
 }
-
-

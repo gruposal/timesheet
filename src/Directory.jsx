@@ -1,143 +1,101 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { supabase, isSupabaseConfigured } from "./lib/supabase";
+import React, { useEffect, useState } from "react";
+import { people as cuPeople, projects as cuProjects } from "./lib/clickup/lists.js";
 
-function Section({ title, items, onAdd, onRename, onDelete, placeholder, disabled }) {
+function Section({ title, items, loading, onAdd, onRename, onDelete }) {
   const [name, setName] = useState("");
   const [filter, setFilter] = useState("");
-  const filtered = useMemo(() => {
-    const f = filter.trim().toLowerCase();
-    if (!f) return items;
-    return items.filter((x) => x.name.toLowerCase().includes(f));
-  }, [items, filter]);
+
+  const filtered = filter
+    ? items.filter(x => x.name.toLowerCase().includes(filter.toLowerCase()))
+    : items;
+
+  const inputCls = "rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 w-full";
+  const btnPrimary = "px-4 py-2 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium hover:bg-slate-700 dark:hover:bg-slate-200 disabled:opacity-40 transition-colors whitespace-nowrap";
+  const btnSecondary = "px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors";
 
   return (
-    <section className="p-4 bg-white rounded-2xl shadow-sm border">
-      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filtrar"
-          className="rounded-xl border px-3 py-2 text-sm"
-        />
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <h3 className="font-semibold text-sm">{title}</h3>
+        <span className="text-xs text-slate-400">{items.length} {items.length === 1 ? "item" : "itens"}</span>
       </div>
-      <div className="flex items-center gap-2 mb-3">
+
+      <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex gap-2">
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={placeholder}
-          className="flex-1 rounded-xl border px-3 py-2"
-          disabled={disabled}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={async e => { if (e.key === "Enter" && name.trim()) { await onAdd(name.trim()); setName(""); } }}
+          placeholder="Novo item…"
+          className={inputCls}
+          disabled={loading}
         />
         <button
-          onClick={async () => {
-            if (!name.trim()) return;
-            await onAdd(name.trim());
-            setName("");
-          }}
-          disabled={disabled || !name.trim()}
-          className="rounded-xl border px-3 py-2 bg-black text-white disabled:opacity-50"
+          onClick={async () => { if (!name.trim()) return; await onAdd(name.trim()); setName(""); }}
+          disabled={loading || !name.trim()}
+          className={btnPrimary}
         >
           Adicionar
         </button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-600">
-              <th className="py-2 pr-2">Nome</th>
-              <th className="py-2 pr-2 w-40">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((it) => (
-              <Row
-                key={it.id || it.name}
-                item={it}
-                onRename={onRename}
-                onDelete={onDelete}
-                disabled={disabled}
-              />
-            ))}
-            {!filtered.length && (
-              <tr>
-                <td className="py-4 text-sm text-gray-500" colSpan={2}>Sem itens.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
+
+      {items.length > 5 && (
+        <div className="px-5 py-2 border-b border-slate-100 dark:border-slate-800">
+          <input
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            placeholder="Filtrar…"
+            className={inputCls}
+          />
+        </div>
+      )}
+
+      <ul className="divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto">
+        {filtered.map(item => (
+          <Row key={item.id} item={item} loading={loading} onRename={onRename} onDelete={onDelete} />
+        ))}
+        {!filtered.length && (
+          <li className="px-5 py-6 text-sm text-slate-400 text-center">Sem itens.</li>
+        )}
+      </ul>
+    </div>
   );
 }
 
-function Row({ item, onRename, onDelete, disabled }) {
+function Row({ item, loading, onRename, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(item.name);
+
+  const btnSecondary = "px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors";
+  const inputCls = "rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 flex-1";
+
   return (
-    <tr className="border-t">
-      <td className="py-2 pr-2">
-        {editing ? (
+    <li className="group px-5 py-2.5 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+      {editing ? (
+        <>
           <input
             value={value}
-            onChange={(e) => setValue(e.target.value)}
-            className="rounded-xl border px-2 py-1 w-full"
-            disabled={disabled}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={async e => {
+              if (e.key === "Enter") { await onRename(item, value.trim()); setEditing(false); }
+              if (e.key === "Escape") { setValue(item.name); setEditing(false); }
+            }}
+            autoFocus
+            className={inputCls}
+            disabled={loading}
           />
-        ) : (
-          <span>{item.name}</span>
-        )}
-      </td>
-      <td className="py-2 pr-2">
-        <div className="flex gap-2">
-          {editing ? (
-            <>
-              <button
-                onClick={async () => {
-                  const n = value.trim();
-                  if (n && n !== item.name) await onRename(item, n);
-                  setEditing(false);
-                }}
-                disabled={disabled || !value.trim()}
-                className="rounded-lg border px-2 py-1 hover:bg-gray-100"
-                title="Salvar"
-              >
-                💾
-              </button>
-              <button
-                onClick={() => {
-                  setValue(item.name);
-                  setEditing(false);
-                }}
-                className="rounded-lg border px-2 py-1 hover:bg-gray-100"
-                title="Cancelar"
-              >
-                ↩️
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setEditing(true)}
-                disabled={disabled}
-                className="rounded-lg border px-2 py-1 hover:bg-gray-100"
-                title="Renomear"
-              >
-                ✏️
-              </button>
-              <button
-                onClick={async () => { await onDelete(item); }}
-                disabled={disabled}
-                className="rounded-lg border px-2 py-1 hover:bg-gray-100"
-                title="Excluir"
-              >
-                🗑️
-              </button>
-            </>
-          )}
-        </div>
-      </td>
-    </tr>
+          <button onClick={async () => { if (value.trim()) await onRename(item, value.trim()); setEditing(false); }} className={btnSecondary} disabled={loading}>✓</button>
+          <button onClick={() => { setValue(item.name); setEditing(false); }} className={btnSecondary}>↩</button>
+        </>
+      ) : (
+        <>
+          <span className="flex-1 text-sm">{item.name}</span>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => setEditing(true)} className={btnSecondary} disabled={loading} title="Renomear">✏</button>
+            <button onClick={() => onDelete(item)} className={`${btnSecondary} hover:border-red-300 hover:text-red-500`} disabled={loading} title="Excluir">×</button>
+          </div>
+        </>
+      )}
+    </li>
   );
 }
 
@@ -145,165 +103,95 @@ export default function Directory({ onListsChanged }) {
   const [loading, setLoading] = useState(false);
   const [people, setPeople] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [bus, setBus] = useState([]);
   const [toast, setToast] = useState("");
 
-  function showToast(msg) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2000);
-  }
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2000); }
 
   async function loadAll() {
-    if (!supabase) return;
     setLoading(true);
     try {
-      const [{ data: p, error: ep }, { data: pr, error: epr }, { data: b, error: eb }] = await Promise.all([
-        supabase.from("people").select("id, name").order("name", { ascending: true }),
-        supabase.from("projects").select("id, name").order("name", { ascending: true }),
-        supabase.from("business_units").select("id, name").order("name", { ascending: true }),
-      ]);
-      if (ep) throw ep; if (epr) throw epr; if (eb) throw eb;
-      setPeople((p || []).map((x) => ({ id: x.id, name: x.name })));
-      setProjects((pr || []).map((x) => ({ id: x.id, name: x.name })));
-      setBus((b || []).map((x) => ({ id: x.id, name: x.name })));
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn(e);
-      showToast("Falha ao carregar cadastros.");
-    } finally {
-      setLoading(false);
-    }
+      const [ppl, projs] = await Promise.all([cuPeople.loadAll(), cuProjects.loadAll()]);
+      setPeople(ppl);
+      setProjects(projs);
+    } catch (e) { console.warn(e); showToast("Erro ao carregar cadastros."); }
+    finally { setLoading(false); }
   }
 
-  useEffect(() => { if (isSupabaseConfigured) loadAll(); }, []);
+  useEffect(() => { loadAll(); }, []);
 
-  async function addItem(table, name) {
-    const { data, error } = await supabase.from(table).insert({ name }).select("id, name").single();
-    if (error) throw error;
-    return data;
-  }
-  async function renameItem(table, id, name) {
-    const { data, error } = await supabase.from(table).update({ name }).eq("id", id).select("id, name").single();
-    if (error) throw error;
-    return data;
-  }
-  async function deleteItem(table, id) {
-    const { error } = await supabase.from(table).delete().eq("id", id);
-    if (error) throw error;
-  }
+  const handleAdd = (list, setList, api) => async (name) => {
+    try {
+      setLoading(true);
+      const item = await api.add(name);
+      setList(p => [...p, item].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      onListsChanged?.();
+      showToast("Adicionado.");
+    } catch (e) { console.warn(e); showToast("Erro ao adicionar."); }
+    finally { setLoading(false); }
+  };
 
-  const disabled = !isSupabaseConfigured || loading;
+  const handleRename = (list, setList, api) => async (item, name) => {
+    try {
+      setLoading(true);
+      await api.rename(item.id, name);
+      setList(p => p.map(x => x.id === item.id ? { ...x, name } : x).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      onListsChanged?.();
+      showToast("Renomeado.");
+    } catch (e) { console.warn(e); showToast("Erro ao renomear."); }
+    finally { setLoading(false); }
+  };
+
+  const handleDelete = (setList, api) => async (item) => {
+    if (!window.confirm(`Excluir "${item.name}"?`)) return;
+    try {
+      setLoading(true);
+      await api.remove(item.id);
+      setList(p => p.filter(x => x.id !== item.id));
+      onListsChanged?.();
+      showToast("Excluído.");
+    } catch (e) { console.warn(e); showToast("Erro ao excluir."); }
+    finally { setLoading(false); }
+  };
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-6">
-      {!isSupabaseConfigured && (
-        <div className="mb-4 p-3 rounded-xl border bg-yellow-50 text-yellow-800 text-sm">
-          Configure o Supabase em `.env.local` para habilitar os cadastros.
-        </div>
-      )}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Section
-          title="Pessoas"
-          items={people}
-          placeholder="Nome da pessoa"
-          disabled={disabled}
-          onAdd={async (name) => {
-            try {
-              const d = await addItem("people", name);
-              setPeople((prev) => [...prev, { id: d.id, name: d.name }].sort((a,b)=>a.name.localeCompare(b.name)));
-              onListsChanged?.();
-              showToast("Pessoa adicionada.");
-            } catch (e) {
-              // eslint-disable-next-line no-console
-              console.warn(e); showToast("Falha ao adicionar.");
-            }
-          }}
-          onRename={async (item, name) => {
-            try {
-              const d = await renameItem("people", item.id, name);
-              setPeople((prev) => prev.map((x) => (x.id === item.id ? { id: d.id, name: d.name } : x)).sort((a,b)=>a.name.localeCompare(b.name)));
-              onListsChanged?.();
-              showToast("Pessoa renomeada.");
-            } catch (e) { console.warn(e); showToast("Falha ao renomear."); }
-          }}
-          onDelete={async (item) => {
-            try {
-              await deleteItem("people", item.id);
-              setPeople((prev) => prev.filter((x) => x.id !== item.id));
-              onListsChanged?.();
-              showToast("Pessoa excluída.");
-            } catch (e) { console.warn(e); showToast("Falha ao excluir."); }
-          }}
-        />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="font-semibold text-base">Cadastros</h2>
+        <button
+          onClick={loadAll}
+          disabled={loading}
+          className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors"
+        >
+          {loading ? "Carregando…" : "Atualizar"}
+        </button>
+      </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        <Section
+          title="Colaboradores"
+          items={people}
+          loading={loading}
+          onAdd={handleAdd(people, setPeople, cuPeople)}
+          onRename={handleRename(people, setPeople, cuPeople)}
+          onDelete={handleDelete(setPeople, cuPeople)}
+        />
         <Section
           title="Projetos"
           items={projects}
-          placeholder="Nome do projeto"
-          disabled={disabled}
-          onAdd={async (name) => {
-            try {
-              const d = await addItem("projects", name);
-              setProjects((prev) => [...prev, { id: d.id, name: d.name }].sort((a,b)=>a.name.localeCompare(b.name)));
-              onListsChanged?.();
-              showToast("Projeto adicionado.");
-            } catch (e) { console.warn(e); showToast("Falha ao adicionar."); }
-          }}
-          onRename={async (item, name) => {
-            try {
-              const d = await renameItem("projects", item.id, name);
-              setProjects((prev) => prev.map((x) => (x.id === item.id ? { id: d.id, name: d.name } : x)).sort((a,b)=>a.name.localeCompare(b.name)));
-              onListsChanged?.();
-              showToast("Projeto renomeado.");
-            } catch (e) { console.warn(e); showToast("Falha ao renomear."); }
-          }}
-          onDelete={async (item) => {
-            try {
-              await deleteItem("projects", item.id);
-              setProjects((prev) => prev.filter((x) => x.id !== item.id));
-              onListsChanged?.();
-              showToast("Projeto excluído.");
-            } catch (e) { console.warn(e); showToast("Falha ao excluir."); }
-          }}
-        />
-
-        <Section
-          title="Unidades de Negócio"
-          items={bus}
-          placeholder="Nome da BU"
-          disabled={disabled}
-          onAdd={async (name) => {
-            try {
-              const d = await addItem("business_units", name);
-              setBus((prev) => [...prev, { id: d.id, name: d.name }].sort((a,b)=>a.name.localeCompare(b.name)));
-              onListsChanged?.();
-              showToast("BU adicionada.");
-            } catch (e) { console.warn(e); showToast("Falha ao adicionar."); }
-          }}
-          onRename={async (item, name) => {
-            try {
-              const d = await renameItem("business_units", item.id, name);
-              setBus((prev) => prev.map((x) => (x.id === item.id ? { id: d.id, name: d.name } : x)).sort((a,b)=>a.name.localeCompare(b.name)));
-              onListsChanged?.();
-              showToast("BU renomeada.");
-            } catch (e) { console.warn(e); showToast("Falha ao renomear."); }
-          }}
-          onDelete={async (item) => {
-            try {
-              await deleteItem("business_units", item.id);
-              setBus((prev) => prev.filter((x) => x.id !== item.id));
-              onListsChanged?.();
-              showToast("BU excluída.");
-            } catch (e) { console.warn(e); showToast("Falha ao excluir."); }
-          }}
+          loading={loading}
+          onAdd={handleAdd(projects, setProjects, cuProjects)}
+          onRename={handleRename(projects, setProjects, cuProjects)}
+          onDelete={handleDelete(setProjects, cuProjects)}
         />
       </div>
 
       {toast && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-2 rounded-xl shadow-lg">{toast}</div>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-medium px-4 py-3 rounded-xl shadow-lg">
+            {toast}
+          </div>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
-
-

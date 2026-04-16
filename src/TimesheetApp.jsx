@@ -186,6 +186,13 @@ export default function TimesheetApp() {
   const toastRef              = useRef(null);
   const [helpOpen, setHelpOpen] = useState(false);
 
+  const blankPlanRow   = () => ({ id: uid(), businessUnit: bus[0] || "", project: "", hours_forecast: "" });
+  const blankPlanGroup = () => ({ id: uid(), person: "", rows: [blankPlanRow()] });
+  const [planGroups, setPlanGroups] = useState(() => {
+    const saved = safeJsonParse(localStorage.getItem("ts:plan:v1") || "null", null);
+    return Array.isArray(saved) && saved.length ? saved : [blankPlanGroup()];
+  });
+
   function showToast(msg) {
     if (!toastRef.current) toastRef.current = {};
     setToast(msg);
@@ -206,12 +213,17 @@ export default function TimesheetApp() {
   }, [selectedYear, selectedWeek, person, entries, view, theme]);
 
   useEffect(() => {
+    try { localStorage.setItem("ts:plan:v1", JSON.stringify(planGroups)); } catch {}
+  }, [planGroups]);
+
+  useEffect(() => {
     function onKey(e) {
       if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) { e.preventDefault(); setHelpOpen(v => !v); }
       if (e.key === "?" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); setHelpOpen(v => !v); }
       if (e.shiftKey) {
         if (e.key === "1") { e.preventDefault(); setView("timesheet"); }
-        if (e.key === "2") { e.preventDefault(); setView("dashboard"); }
+        if (e.key === "2") { e.preventDefault(); setView("planning"); }
+        if (e.key === "3") { e.preventDefault(); setView("dashboard"); }
       }
     }
     window.addEventListener("keydown", onKey);
@@ -272,6 +284,53 @@ export default function TimesheetApp() {
     });
   }
   function clearEntries() { setEntries([blankEntry()]); }
+
+  // ─── Planning (multi-person) ──────────────────────────────────────────────
+  function addPlanGroup() { setPlanGroups(p => [...p, blankPlanGroup()]); }
+  function removePlanGroup(gid) { setPlanGroups(p => p.filter(g => g.id !== gid)); }
+  function setPlanPerson(gid, person) { setPlanGroups(p => p.map(g => g.id === gid ? { ...g, person } : g)); }
+  function addPlanRow(gid) { setPlanGroups(p => p.map(g => g.id === gid ? { ...g, rows: [...g.rows, blankPlanRow()] } : g)); }
+  function removePlanRow(gid, rid) { setPlanGroups(p => p.map(g => g.id === gid ? { ...g, rows: g.rows.filter(r => r.id !== rid) } : g)); }
+  function updatePlanRow(gid, rid, field, value) {
+    setPlanGroups(prev => prev.map(g => {
+      if (g.id !== gid) return g;
+      return {
+        ...g,
+        rows: g.rows.map(r => {
+          if (r.id !== rid) return r;
+          if (field === "hours_forecast") {
+            if (value === "") return { ...r, hours_forecast: "" };
+            let n = parseInt(value, 10);
+            if (isNaN(n)) n = 0;
+            n = Math.max(0, Math.min(40, n));
+            const otherTotal = g.rows.filter(pr => pr.id !== rid).reduce((s, pr) => s + (Number(pr.hours_forecast) || 0), 0);
+            if (otherTotal + n > 40) { n = Math.max(0, 40 - otherTotal); showToast(`Cap 40h atingido${g.person ? ` — ${g.person}` : ""}.`); }
+            return { ...r, hours_forecast: n };
+          }
+          return { ...r, [field]: value };
+        }),
+      };
+    }));
+  }
+
+  async function savePlan() {
+    const rows = planGroups.flatMap(g =>
+      g.rows
+        .filter(r => g.person && r.project && Number(r.hours_forecast) > 0)
+        .map(r => ({
+          Year: selectedYear, ISO_Week: selectedWeek,
+          Person: g.person, Project: r.project, Business_Unit: r.businessUnit,
+          Hours_Forecast: Number(r.hours_forecast), Hours_Consolidated: null,
+        }))
+    );
+    if (!rows.length) { showToast("Preencha pessoa, projeto e horas em pelo menos uma linha."); return; }
+    try {
+      setSaving(true);
+      await upsertForecast(rows);
+      showToast(`Planejamento salvo — ${rows.length} linha${rows.length > 1 ? "s" : ""}.`);
+    } catch (e) { console.warn(e); showToast("Erro ao salvar planejamento."); }
+    finally { setSaving(false); }
+  }
 
   function buildCuRows() {
     return entries
@@ -402,8 +461,9 @@ export default function TimesheetApp() {
   const sep       = "divide-y divide-black/[0.06] dark:divide-white/[0.06]";
 
   const TABS = [
-    { k: "timesheet", label: "Lançar",      icon: "⏱" },
-    { k: "dashboard", label: "Visão Geral", icon: "📊" },
+    { k: "timesheet", label: "Lançar",       icon: "⏱" },
+    { k: "planning",  label: "Planejamento", icon: "📅" },
+    { k: "dashboard", label: "Visão Geral",  icon: "📊" },
   ];
 
   return (
@@ -608,6 +668,141 @@ export default function TimesheetApp() {
         )}
 
         {/* ══════════════════════════════════════════
+            PLANEJAMENTO  (jornada da gestora)
+        ══════════════════════════════════════════ */}
+        {view === "planning" && (
+          <>
+            {/* Week selector */}
+            <div className={`${card} overflow-hidden mb-5`}>
+              <div className="px-4 py-3 flex items-center gap-3 min-h-[60px]">
+                <span className="text-[15px] text-[#8E8E93] w-28 shrink-0">Semana</span>
+                <div className="flex items-center gap-3 flex-1">
+                  <button onClick={prevWeek}
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F2F2F7] dark:bg-[#3A3A3C] text-[#007AFF] dark:text-[#0A84FF] text-[22px] leading-none font-light shrink-0">‹</button>
+                  <div className="flex-1 text-center">
+                    <div className="text-[15px] font-semibold">
+                      Semana {toTwo(selectedWeek)}
+                      <span className="text-[#8E8E93] font-normal ml-2">{selectedYear}</span>
+                    </div>
+                    <div className="text-[12px] text-[#8E8E93] mt-0.5">{format(start, "dd/MM")} – {format(end, "dd/MM")}</div>
+                  </div>
+                  <button onClick={nextWeek}
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F2F2F7] dark:bg-[#3A3A3C] text-[#007AFF] dark:text-[#0A84FF] text-[22px] leading-none font-light shrink-0">›</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Person cards */}
+            {planGroups.map(g => {
+              const groupTotal = g.rows.reduce((s, r) => s + (Number(r.hours_forecast) || 0), 0);
+              const isOver = groupTotal > 40;
+              const isFull = groupTotal === 40;
+              return (
+                <div key={g.id} className={`${card} overflow-x-auto mb-3`}>
+                  {/* Person header */}
+                  <div className="px-4 py-3 flex items-center gap-3 border-b border-black/[0.06] dark:border-white/[0.06] bg-[#F9F9F9] dark:bg-[#2C2C2E]/50 min-w-[460px]">
+                    <div className="flex-1">
+                      <Combobox
+                        value={g.person}
+                        onChange={v => setPlanPerson(g.id, v)}
+                        options={people}
+                        placeholder={people.length === 0 ? "Carregando…" : "Selecionar pessoa…"}
+                        className={inputCls}
+                      />
+                    </div>
+                    {/* Cap indicator */}
+                    <div className={`text-[13px] font-semibold tabular-nums shrink-0 px-2.5 py-1 rounded-full border ${
+                      isOver ? "text-[#FF3B30] dark:text-[#FF453A] bg-[#FF3B30]/10 border-[#FF3B30]/20"
+                      : isFull ? "text-[#34C759] bg-[#34C759]/10 border-[#34C759]/20"
+                      : "text-[#8E8E93] bg-black/[0.04] dark:bg-white/[0.06] border-transparent"
+                    }`}>
+                      {groupTotal}/40h
+                    </div>
+                    {planGroups.length > 1 && (
+                      <button onClick={() => removePlanGroup(g.id)}
+                        className="w-7 h-7 flex items-center justify-center rounded-full text-[#FF3B30] dark:text-[#FF453A] hover:bg-[#FF3B30]/10 transition-colors text-[18px] leading-none shrink-0">
+                        ×
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Rows */}
+                  <table className="w-full min-w-[460px]">
+                    <thead>
+                      <tr className="border-b border-black/[0.04] dark:border-white/[0.04]">
+                        <th className={th}>Centro de Custo</th>
+                        <th className={th}>Projeto</th>
+                        <th className={`${th} text-center`} style={{ width: "90px" }}>Previstas</th>
+                        <th style={{ width: "36px" }} />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+                      {g.rows.map(r => (
+                        <tr key={r.id} className="group">
+                          <td className={td}>
+                            <select value={r.businessUnit} onChange={ev => updatePlanRow(g.id, r.id, "businessUnit", ev.target.value)} className={inputCls}>
+                              {bus.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </td>
+                          <td className={td}>
+                            <Combobox
+                              value={r.project}
+                              onChange={v => updatePlanRow(g.id, r.id, "project", v)}
+                              options={projects}
+                              placeholder={projects.length === 0 ? "Carregando…" : "Projeto…"}
+                              className={inputCls}
+                            />
+                          </td>
+                          <td className={`${td} text-center`}>
+                            <input type="number" min={0} max={40} step={1}
+                              value={r.hours_forecast}
+                              onChange={ev => updatePlanRow(g.id, r.id, "hours_forecast", ev.target.value)}
+                              placeholder="0"
+                              className={`${inputCls} text-center tabular-nums`}
+                            />
+                          </td>
+                          <td className="pr-3">
+                            <button onClick={() => removePlanRow(g.id, r.id)}
+                              className="w-6 h-6 flex items-center justify-center rounded-full text-[#FF3B30] dark:text-[#FF453A] opacity-0 group-hover:opacity-100 hover:bg-[#FF3B30]/10 transition-all text-[18px] leading-none">
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Add row within group */}
+                  <div className="px-4 py-2.5 border-t border-black/[0.04] dark:border-white/[0.04] min-w-[460px]">
+                    <button onClick={() => addPlanRow(g.id)}
+                      className="text-[#007AFF] dark:text-[#0A84FF] text-[15px] font-medium">
+                      + Adicionar linha
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Add person */}
+            <button onClick={addPlanGroup}
+              className="w-full py-4 rounded-2xl border-2 border-dashed border-[#007AFF]/25 dark:border-[#0A84FF]/25 text-[#007AFF] dark:text-[#0A84FF] text-[15px] font-medium mb-5 hover:border-[#007AFF]/50 dark:hover:border-[#0A84FF]/50 hover:bg-[#007AFF]/[0.03] transition-all">
+              + Adicionar pessoa
+            </button>
+
+            {/* Save */}
+            <button onClick={savePlan} disabled={saving} className={btnBlue}>
+              {saving ? "Salvando…" : "Salvar Planejamento"}
+            </button>
+
+            {/* Reset */}
+            <button onClick={() => { if (window.confirm("Limpar todo o planejamento?")) setPlanGroups([blankPlanGroup()]); }}
+              className="w-full mt-2 py-3 text-[15px] text-[#FF3B30] dark:text-[#FF453A] font-medium transition-opacity hover:opacity-70">
+              Limpar
+            </button>
+          </>
+        )}
+
+        {/* ══════════════════════════════════════════
             VISÃO GERAL  (jornada do gestor)
         ══════════════════════════════════════════ */}
         {view === "dashboard" && (
@@ -790,7 +985,8 @@ export default function TimesheetApp() {
               <div className={sep}>
                 {[
                   ["Shift + 1", "Lançar"],
-                  ["Shift + 2", "Visão Geral"],
+                  ["Shift + 2", "Planejamento"],
+                  ["Shift + 3", "Visão Geral"],
                   ["?  ou  Ctrl+K", "Esta ajuda"],
                 ].map(([k, v]) => (
                   <div key={k} className="px-4 py-3 flex items-center justify-between">

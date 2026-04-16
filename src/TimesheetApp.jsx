@@ -462,8 +462,8 @@ export default function TimesheetApp() {
             </div>
 
             {/* Entry table */}
-            <div className={`${card} overflow-hidden mb-4`}>
-              <table className="w-full">
+            <div className={`${card} overflow-x-auto mb-4`}>
+              <table className="w-full min-w-[560px]">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
                     <th className={th} style={{ width: "22%" }}>Centro de Custo</th>

@@ -40,6 +40,14 @@ function Combobox({ value, onChange, options, placeholder, className }) {
 
   useEffect(() => { setQuery(value ?? ""); }, [value]);
 
+  // Close on scroll so the dropdown doesn't drift from input on mobile
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, true);
+    return () => window.removeEventListener("scroll", close, true);
+  }, [open]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
@@ -59,13 +67,25 @@ function Combobox({ value, onChange, options, placeholder, className }) {
   }
 
   function handleBlur(e) {
-    // Allow clicks inside the list to register before blur closes it
     if (listRef.current?.contains(e.relatedTarget)) return;
     const match = options.find(o => o.toLowerCase() === query.trim().toLowerCase());
     if (match) { onChange(match); setQuery(match); }
     else { setQuery(value ?? ""); }
     setOpen(false);
   }
+
+  // Position: prefer below, flip above if not enough space
+  const dropStyle = useMemo(() => {
+    if (!rect) return {};
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const maxH = 208; // max-h-52 = 13rem ≈ 208px
+    const top = spaceBelow >= maxH + 8 ? rect.bottom + 4 : rect.top - Math.min(maxH, filtered.length * 44) - 4;
+    // On narrow screens stretch to viewport width with horizontal margin
+    const isMobile = window.innerWidth < 640;
+    return isMobile
+      ? { position: "fixed", top, left: 12, right: 12, zIndex: 9999 }
+      : { position: "fixed", top, left: rect.left, width: rect.width, zIndex: 9999 };
+  }, [rect, filtered.length]);
 
   return (
     <>
@@ -78,11 +98,14 @@ function Combobox({ value, onChange, options, placeholder, className }) {
         placeholder={placeholder}
         className={className}
         autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
       />
       {open && filtered.length > 0 && rect && (
         <ul
           ref={listRef}
-          style={{ position: "fixed", top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 9999 }}
+          style={dropStyle}
           className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl text-sm"
         >
           {filtered.map(opt => (
@@ -90,7 +113,8 @@ function Combobox({ value, onChange, options, placeholder, className }) {
               key={opt}
               tabIndex={-1}
               onMouseDown={e => { e.preventDefault(); select(opt); }}
-              className={`px-3 py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 ${opt === value ? "font-medium text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300"}`}
+              onTouchEnd={e => { e.preventDefault(); select(opt); }}
+              className={`px-3 py-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200 dark:active:bg-slate-600 ${opt === value ? "font-medium text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300"}`}
             >
               {opt}
             </li>
@@ -203,7 +227,7 @@ export default function TimesheetApp() {
   useEffect(() => { loadLists(); }, []);
 
   useEffect(() => {
-    if (people.length && !people.includes(person)) setPerson(people[0]);
+    if (people.length && person && !people.includes(person)) setPerson("");
   }, [people]);
 
   function prevWeek() {

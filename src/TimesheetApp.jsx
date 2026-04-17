@@ -182,9 +182,22 @@ export default function TimesheetApp() {
     if (s === "dark" || s === "light") return s;
     return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   });
-  const [toast, setToast]     = useState("");
-  const toastRef              = useRef(null);
+  const [toast, setToast]       = useState("");
+  const toastRef                = useRef(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tokenInput, setTokenInput]     = useState(() => localStorage.getItem('cu:token') || '');
+  const [showToken, setShowToken]       = useState(false);
+  const hasToken = !!(localStorage.getItem('cu:token') || import.meta.env.VITE_CLICKUP_TOKEN);
+
+  function saveSettings() {
+    const t = tokenInput.trim();
+    if (t) localStorage.setItem('cu:token', t);
+    else localStorage.removeItem('cu:token');
+    setSettingsOpen(false);
+    showToast('Configurações salvas.');
+    loadLists();
+  }
 
   const blankPlanRow   = () => ({ id: uid(), businessUnit: bus[0] || "", project: "", hours_forecast: "" });
   const blankPlanGroup = () => ({ id: uid(), person: "", rows: [blankPlanRow()] });
@@ -493,6 +506,11 @@ export default function TimesheetApp() {
               className="hidden sm:flex items-center px-3 py-1.5 rounded-[8px] text-[13px] text-[#007AFF] dark:text-[#0A84FF] font-medium hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] transition-colors">
               Excel
             </button>
+            <button onClick={() => setSettingsOpen(true)}
+              className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors text-[15px] ${!hasToken ? "text-[#FF9500]" : "text-[#8E8E93] hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E]"}`}
+              title="Configurações">
+              ⚙
+            </button>
             <button onClick={() => setHelpOpen(v => !v)}
               className="w-9 h-9 flex items-center justify-center rounded-full text-[#8E8E93] hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] transition-colors text-[15px]">
               ?
@@ -507,6 +525,17 @@ export default function TimesheetApp() {
 
       {/* ── Main ── */}
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 pb-32 sm:pb-12">
+
+        {!hasToken && (
+          <button onClick={() => setSettingsOpen(true)}
+            className="w-full mb-5 px-4 py-3 rounded-2xl bg-[#FF9500]/10 border border-[#FF9500]/25 text-left flex items-center gap-3 hover:bg-[#FF9500]/15 transition-colors">
+            <span className="text-[22px] leading-none shrink-0">⚠️</span>
+            <div>
+              <div className="text-[15px] font-semibold text-[#FF9500]">Token ClickUp não configurado</div>
+              <div className="text-[13px] text-[#FF9500]/80">Toque para configurar →</div>
+            </div>
+          </button>
+        )}
 
         {/* ══════════════════════════════════════════
             LANÇAR  (jornada do colaborador)
@@ -963,6 +992,59 @@ export default function TimesheetApp() {
         <div className="fixed bottom-28 sm:bottom-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
           <div className="backdrop-blur-2xl bg-black/80 dark:bg-[#F2F2F7]/90 text-white dark:text-black text-[15px] font-medium px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap">
             {toast}
+          </div>
+        </div>
+      )}
+
+      {/* ── Settings modal ── */}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSettingsOpen(false)} />
+          <div className={`relative w-full sm:max-w-sm ${card} pt-6 pb-8 px-6 shadow-2xl rounded-t-3xl sm:rounded-2xl`}>
+            <div className="sm:hidden w-10 h-1 rounded-full bg-[#8E8E93]/40 mx-auto mb-6" />
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-semibold text-[17px]">Configurações</h2>
+              <button onClick={() => setSettingsOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F2F2F7] dark:bg-[#3A3A3C] text-[#8E8E93] hover:text-black dark:hover:text-white text-[18px] leading-none">
+                ×
+              </button>
+            </div>
+
+            {/* Token section */}
+            <div className={`${card} overflow-hidden mb-5`} style={{background: ""}}>
+              <div className="px-4 pt-3 pb-1">
+                <span className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider">ClickUp</span>
+              </div>
+              <div className="px-4 pb-4">
+                <label className="block text-[15px] font-medium mb-2">Token de API</label>
+                <div className="relative">
+                  <input
+                    type={showToken ? "text" : "password"}
+                    value={tokenInput}
+                    onChange={e => setTokenInput(e.target.value)}
+                    placeholder="pk_..."
+                    className={`${
+                      "rounded-[10px] border border-black/[0.08] dark:border-white/[0.1] bg-[#F2F2F7] dark:bg-[#2C2C2E] px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#007AFF] dark:focus:ring-[#0A84FF] w-full"
+                    } pr-12 font-mono text-[13px]`}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    onClick={() => setShowToken(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-black dark:hover:text-white text-[12px] font-medium transition-colors">
+                    {showToken ? "Ocultar" : "Mostrar"}
+                  </button>
+                </div>
+                <p className="mt-2 text-[12px] text-[#8E8E93]">
+                  Gere em <span className="font-medium">ClickUp → Perfil → Apps → API Token</span>. Salvo apenas neste dispositivo.
+                </p>
+              </div>
+            </div>
+
+            <button onClick={saveSettings}
+              className="w-full flex items-center justify-center py-[14px] rounded-[14px] bg-[#007AFF] dark:bg-[#0A84FF] text-white text-[17px] font-semibold transition-opacity active:opacity-70">
+              Salvar
+            </button>
           </div>
         </div>
       )}

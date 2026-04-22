@@ -1,8 +1,34 @@
 import { cuFetch } from './client.js';
-import { LIST_ENTRIES, FIELDS, ccIdToName, ccNameToId } from './fields.js';
+import { LIST_ENTRIES, LIST_PEOPLE, LIST_PROJECTS, FIELDS, ccIdToName, ccNameToId } from './fields.js';
 
 // session cache: task name → clickup task id
-const taskIdCache = new Map();
+const taskIdCache    = new Map();
+const personIdCache  = new Map(); // person name → clickup task id (LISTA_PESSOAS)
+const projectIdCache = new Map(); // project name → clickup task id (LISTA_PROJETOS)
+
+async function fetchAllFromList(listId) {
+  const tasks = [];
+  let page = 0;
+  while (true) {
+    const data = await cuFetch(`/list/${listId}/task?page=${page}&limit=100&include_closed=true`);
+    tasks.push(...(data.tasks || []));
+    if (data.last_page || !(data.tasks || []).length) break;
+    page++;
+  }
+  return tasks;
+}
+
+async function ensurePersonCache() {
+  if (personIdCache.size > 0) return;
+  const tasks = await fetchAllFromList(LIST_PEOPLE);
+  tasks.forEach(t => personIdCache.set(t.name.trim(), t.id));
+}
+
+async function ensureProjectCache() {
+  if (projectIdCache.size > 0) return;
+  const tasks = await fetchAllFromList(LIST_PROJECTS);
+  tasks.forEach(t => projectIdCache.set(t.name.trim(), t.id));
+}
 
 export function makeTaskName(year, isoWeek, person, project) {
   const week = String(isoWeek).padStart(2, '0');
@@ -99,6 +125,18 @@ async function createEntry(row) {
   });
 
   taskIdCache.set(name, task.id);
+
+  // Relationship fields — non-blocking
+  try {
+    await Promise.all([ensurePersonCache(), ensureProjectCache()]);
+    const personId  = personIdCache.get(row.Person);
+    const projectId = projectIdCache.get(row.Project);
+    if (personId)  await setField(task.id, FIELDS.rel_colaborador, { add: [personId] });
+    if (projectId) await setField(task.id, FIELDS.rel_projeto,     { add: [projectId] });
+  } catch (e) {
+    console.warn('rel fields skipped:', e.message);
+  }
+
   return task.id;
 }
 
